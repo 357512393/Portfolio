@@ -24,11 +24,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: pnpm
-          cache-dependency-path: portfolio-site/pnpm-lock.yaml
 
       - name: Enable pnpm
-        run: corepack enable
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.19.0 --activate
 
       - name: Install dependencies
         run: pnpm install --dir portfolio-site --frozen-lockfile --prefer-offline
