@@ -119,6 +119,8 @@ class Media {
     if (screen) this.screen = screen;
     if (viewport) this.viewport = viewport;
 
+    this.isMobile = this.screen.width <= 809;
+
     this.baseScaleX = (this.viewport.width * this.planeWidth) / this.screen.width;
     this.baseScaleY = (this.viewport.height * this.planeHeight) / this.screen.height;
     const minBaseScaleX = (this.viewport.width * this.minPlaneWidth) / this.screen.width;
@@ -139,6 +141,11 @@ class Media {
   update(scroll) {
     this.relative = wrap(this.index - scroll.current, this.length);
     const relativeDistance = Math.abs(this.relative);
+    // On mobile, the furthest cards sit beyond the viewport edge. Hide them
+    // before the cyclic wrap point so a card cannot flash from the top edge to
+    // the bottom edge during a fast vertical gesture. Desktop keeps all cards
+    // rendered and retains its original looping behavior.
+    this.plane.visible = !this.isMobile || relativeDistance < 3.35;
     const trackDistance = Math.min(relativeDistance, 2) + Math.max(0, relativeDistance - 2) * 0.58;
     const trackRelative = Math.sign(this.relative) * trackDistance;
     const angle = trackRelative * this.angleStep;
