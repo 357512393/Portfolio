@@ -167,8 +167,17 @@ class Media {
 class PosterCanvas {
   constructor(options) {
     Object.assign(this, options);
-    this.scroll = { ease: this.scrollEase, current: 0, target: 0, last: 0 };
-    this.activeIndex = -1;
+    // Start the first frame below the viewport and let the track travel back
+    // to the opening poster once. Increasing the scroll value moves posters
+    // upward on the existing 3D spiral, so the intro feels like the images
+    // rise into place instead of simply fading in.
+    this.introStart = -2.4;
+    this.introDuration = 1350;
+    this.introActive = this.introAnimation !== false;
+    this.introStartedAt = performance.now();
+    const initialScroll = this.introActive ? this.introStart : 0;
+    this.scroll = { ease: this.scrollEase, current: initialScroll, target: 0, last: initialScroll };
+    this.activeIndex = 0;
     this.isDown = false;
     this.hoveredIndex = null;
     this.hoverFrame = 0;
@@ -241,8 +250,16 @@ class PosterCanvas {
   }
 
   onWheel(event) {
+    this.cancelIntro();
     this.scroll.target += event.deltaY * 0.0017;
     this.scheduleSnap();
+  }
+
+  cancelIntro() {
+    if (!this.introActive) return;
+    this.introActive = false;
+    this.scroll.target = this.scroll.current;
+    this.scroll.last = this.scroll.current;
   }
 
   snapToNearest() {
@@ -292,6 +309,7 @@ class PosterCanvas {
 
   onPointerDown(event) {
     if (typeof event.button === "number" && event.button !== 0) return;
+    this.cancelIntro();
     window.clearTimeout(this.snapTimer);
     this.isDown = true;
     this.scroll.position = this.scroll.current;
@@ -330,6 +348,7 @@ class PosterCanvas {
   }
 
   goToIndex(index, immediate = false) {
+    this.cancelIntro();
     window.clearTimeout(this.snapTimer);
     const cycles = Math.round((this.scroll.target - index) / this.items.length);
     this.scroll.target = index + cycles * this.items.length;
@@ -352,7 +371,21 @@ class PosterCanvas {
   }
 
   update() {
-    this.scroll.current = lerp(this.scroll.current, this.scroll.target, this.scroll.ease);
+    if (this.introActive) {
+      const progress = Math.min(1, (performance.now() - this.introStartedAt) / this.introDuration);
+      // Ease-out cubic gives the posters a quick lift followed by a soft settle.
+      const eased = 1 - ((1 - progress) ** 3);
+      this.scroll.current = lerp(this.introStart, 0, eased);
+      this.scroll.target = 0;
+      if (progress >= 1) {
+        this.introActive = false;
+        this.scroll.current = 0;
+        this.scroll.last = 0;
+        this.onIndexChange?.(0);
+      }
+    } else {
+      this.scroll.current = lerp(this.scroll.current, this.scroll.target, this.scroll.ease);
+    }
     this.medias.forEach((media) => media.update(this.scroll));
 
     const closest = this.medias.reduce((best, media) => {
@@ -361,7 +394,9 @@ class PosterCanvas {
     }, { index: 0, distance: Infinity });
     if (closest.index !== this.activeIndex) {
       this.activeIndex = closest.index;
-      this.onIndexChange?.(closest.index);
+      // Keep the opening project selected while the intro is moving; once it
+      // settles, normal nearest-poster updates resume.
+      if (!this.introActive) this.onIndexChange?.(closest.index);
     }
 
     this.renderer.render({ scene: this.scene, camera: this.camera });
@@ -409,6 +444,7 @@ export default function FlyingPosters({
   scrollEase = 0.05,
   cameraFov = 38,
   cameraZ = 16,
+  introAnimation = true,
   onIndexChange,
   onPosterClick,
   focusRequest,
@@ -441,6 +477,7 @@ export default function FlyingPosters({
       scrollEase,
       cameraFov,
       cameraZ,
+      introAnimation,
       onIndexChange: (index) => onIndexChangeRef.current?.(index),
       onPosterClick: (index) => onPosterClickRef.current?.(index),
     });

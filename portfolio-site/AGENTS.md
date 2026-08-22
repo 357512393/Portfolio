@@ -11,6 +11,8 @@ Build app UI in `src/`. Keep `.openai/hosting.json`, `worker/index.js`, `scripts
 
 ## Durable design decisions for this prototype
 
+- After every completed fix or task, the handoff response must include the exact Git commit and push commands for the changed files. Do not execute the remote push unless the user explicitly asks for it.
+
 - This is a new standalone single-page portfolio based on the structure of https://teonak.com/.
 - The page background is pure black; do not change the overall reference-site structure without explicit user approval.
 - All interface copy is Chinese. Except for the upper-left brand, interface typography stays fixed at the reference site's 13px desktop size; auxiliary copy may use 12px.

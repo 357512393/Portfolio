@@ -322,6 +322,7 @@ export function App() {
           scrollEase={0.05}
           cameraFov={38}
           cameraZ={16}
+          introAnimation={detailIndex < 0 && !aboutOpen && !photographyOpen}
           focusRequest={focusRequest}
           onIndexChange={setActiveIndex}
           onPosterClick={handlePosterClick}
