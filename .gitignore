@@ -1,0 +1,15 @@
+.DS_Store
+.pnpm-store/
+
+# Dependencies and local build output
+**/node_modules/
+**/dist/
+
+# Local-only environment files
+**/.env
+**/.env.*
+!**/.env.example
+
+# Visual QA artifacts are not needed for the deployed site
+portfolio-site/*.png
+reference-evidence/
