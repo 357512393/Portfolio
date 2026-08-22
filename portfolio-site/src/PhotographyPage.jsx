@@ -84,7 +84,11 @@ export default function PhotographyPage({ onClose }) {
   const thumbnailRailRef = useRef(null);
   const thumbnailClickGuardRef = useRef(false);
   const selectedImageRef = useRef(null);
-  const cycleCount = 5;
+  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
+  const mobile = viewportWidth <= 809;
+  // Keep enough surrounding cycles for seamless rebasing without asking
+  // mobile browsers to decode hundreds of duplicate image elements.
+  const cycleCount = mobile ? 3 : 5;
   const initialCycle = Math.floor(cycleCount / 2);
   const initialProgress = PHOTOGRAPHY_ARCHIVE.length * initialCycle;
   const motionRef = useRef({
@@ -128,8 +132,6 @@ export default function PhotographyPage({ onClose }) {
     () => Array.from({ length: cycleCount }, () => PHOTOGRAPHY_ARCHIVE).flat(),
     [],
   );
-  const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
-  const mobile = viewportWidth <= 809;
   const step = mobile
     ? { x: 132, y: -92, z: -210 }
     : viewportWidth < 1200
@@ -144,12 +146,12 @@ export default function PhotographyPage({ onClose }) {
     const state = motionRef.current;
     const cycleLength = PHOTOGRAPHY_ARCHIVE.length;
     const cycleShift = cycleLength * 2;
-    const unlockProgress = initialProgress + 3;
-    let backwardScrollLocked = true;
-    stage.classList.add("is-initial-lock");
-    // The center cycle is surrounded by four complete cycles in each
-    // direction. The next cycle is already rendered by the fifth-from-last
-    // card, so the viewport never reaches an empty tail/head.
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let backwardScrollLocked = !reducedMotion;
+    if (backwardScrollLocked) stage.classList.add("is-initial-lock");
+    // Keep a complete cycle on either side of the centered cycle. The last
+    // few cards are excluded from the rebase boundary so the viewport never
+    // reaches an empty tail/head during a fast swipe.
     const forwardBoundary = cycleLength * (cycleCount - 1) + cycleLength - 5;
     const backwardBoundary = 5;
     const dragScale = mobile ? 0.0028 : 0.0032;
@@ -166,7 +168,6 @@ export default function PhotographyPage({ onClose }) {
       z: -cycleLength * step.z,
     };
     const cards = [...track.querySelectorAll(".photography-page__card")];
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const finalCardPosition = (index) => ({
       "--card-x": `${index * step.x}px`,
       "--card-y": `${index * step.y}px`,
@@ -176,7 +177,14 @@ export default function PhotographyPage({ onClose }) {
 
     cards.forEach((card, index) => gsap.set(card, finalCardPosition(index)));
 
+    const releaseInitialLock = () => {
+      if (!backwardScrollLocked) return;
+      backwardScrollLocked = false;
+      stage.classList.remove("is-initial-lock");
+    };
+
     const finishEntry = () => {
+      releaseInitialLock();
       if (!entryActive) return;
       entryActive = false;
       entryOffset.x = 0;
@@ -190,11 +198,6 @@ export default function PhotographyPage({ onClose }) {
 
     const constrainInitialScroll = () => {
       if (!backwardScrollLocked) return;
-      if (state.target >= unlockProgress) {
-        backwardScrollLocked = false;
-        stage.classList.remove("is-initial-lock");
-        return;
-      }
       state.target = Math.max(initialProgress, state.target);
     };
 
@@ -212,6 +215,7 @@ export default function PhotographyPage({ onClose }) {
           entryOffset.x = 0;
           entryOffset.y = 0;
           entryOffset.z = 0;
+          releaseInitialLock();
         }
       }
 
