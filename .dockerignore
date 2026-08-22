@@ -1,0 +1,7 @@
+.git
+.DS_Store
+
+portfolio-site/node_modules
+portfolio-site/dist
+portfolio-site/*.png
+portfolio-site/design-qa.md
