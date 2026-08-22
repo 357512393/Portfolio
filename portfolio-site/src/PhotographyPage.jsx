@@ -86,10 +86,10 @@ export default function PhotographyPage({ onClose }) {
   const selectedImageRef = useRef(null);
   const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
   const mobile = viewportWidth <= 809;
-  // Keep enough surrounding cycles for seamless rebasing without asking
-  // mobile browsers to decode hundreds of duplicate image elements.
-  const cycleCount = mobile ? 3 : 5;
-  const initialCycle = Math.floor(cycleCount / 2);
+  // Mobile is a finite gallery. Desktop keeps one duplicate cycle for
+  // seamless looping while avoiding unnecessary image decoding.
+  const cycleCount = mobile ? 1 : 2;
+  const initialCycle = mobile ? 0 : 1;
   const initialProgress = PHOTOGRAPHY_ARCHIVE.length * initialCycle;
   const motionRef = useRef({
     current: initialProgress,
@@ -130,7 +130,7 @@ export default function PhotographyPage({ onClose }) {
   }, []);
   const images = useMemo(
     () => Array.from({ length: cycleCount }, () => PHOTOGRAPHY_ARCHIVE).flat(),
-    [],
+    [cycleCount],
   );
   const step = mobile
     ? { x: 132, y: -92, z: -210 }
@@ -145,14 +145,15 @@ export default function PhotographyPage({ onClose }) {
 
     const state = motionRef.current;
     const cycleLength = PHOTOGRAPHY_ARCHIVE.length;
-    const cycleShift = cycleLength * 2;
+    const cycleShift = cycleLength;
+    const minProgress = mobile ? 0 : 5;
+    const maxProgress = mobile ? cycleLength - 1 : Number.POSITIVE_INFINITY;
+    const unlockProgress = initialProgress + 3;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let backwardScrollLocked = !reducedMotion;
+    let backwardScrollLocked = !mobile && !reducedMotion;
     if (backwardScrollLocked) stage.classList.add("is-initial-lock");
-    // Keep a complete cycle on either side of the centered cycle. The last
-    // few cards are excluded from the rebase boundary so the viewport never
-    // reaches an empty tail/head during a fast swipe.
-    const forwardBoundary = cycleLength * (cycleCount - 1) + cycleLength - 5;
+    // Rebase the desktop duplicate cycle before its tail/head becomes visible.
+    const forwardBoundary = cycleLength * cycleCount - 5;
     const backwardBoundary = 5;
     const dragScale = mobile ? 0.0028 : 0.0032;
     const scrollPerItem = mobile ? 430 : viewportWidth < 1200 ? 500 : 600;
@@ -184,7 +185,6 @@ export default function PhotographyPage({ onClose }) {
     };
 
     const finishEntry = () => {
-      releaseInitialLock();
       if (!entryActive) return;
       entryActive = false;
       entryOffset.x = 0;
@@ -198,11 +198,20 @@ export default function PhotographyPage({ onClose }) {
 
     const constrainInitialScroll = () => {
       if (!backwardScrollLocked) return;
+      if (state.target >= unlockProgress) {
+        releaseInitialLock();
+        return;
+      }
       state.target = Math.max(initialProgress, state.target);
+    };
+
+    const constrainTarget = () => {
+      state.target = Math.max(minProgress, Math.min(maxProgress, state.target));
     };
 
     const update = () => {
       constrainInitialScroll();
+      constrainTarget();
       // Match the reference collection's smooth scroll tracking (0.12 per frame).
       const frameEase = 1 - Math.pow(0.88, gsap.ticker.deltaRatio(60));
       state.current += (state.target - state.current) * frameEase;
@@ -215,17 +224,16 @@ export default function PhotographyPage({ onClose }) {
           entryOffset.x = 0;
           entryOffset.y = 0;
           entryOffset.z = 0;
-          releaseInitialLock();
         }
       }
 
       // Keep one complete cycle loaded on both sides of the visible cycle.
       // Rebase only after the preload window is safely behind the viewport;
       // shifting by two identical cycles preserves every rendered position.
-      if (state.current > forwardBoundary) {
+      if (!mobile && state.current > forwardBoundary) {
         state.current -= cycleShift;
         state.target -= cycleShift;
-      } else if (state.current < backwardBoundary) {
+      } else if (!mobile && state.current < backwardBoundary) {
         state.current += cycleShift;
         state.target += cycleShift;
       }
@@ -243,6 +251,7 @@ export default function PhotographyPage({ onClose }) {
       const wheelScale = 1 / scrollPerItem;
       state.target += event.deltaY * wheelScale + event.deltaX * wheelScale * 0.45;
       constrainInitialScroll();
+      constrainTarget();
     };
 
     const onPointerDown = (event) => {
@@ -271,6 +280,7 @@ export default function PhotographyPage({ onClose }) {
       );
       state.target += movement * dragScale;
       constrainInitialScroll();
+      constrainTarget();
     };
 
     const finishPointer = (event, allowOpen) => {
