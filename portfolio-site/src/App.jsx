@@ -17,11 +17,12 @@ const projectThumbnailImages = (slug, numbers) => (
 );
 
 const homeCoverImage = (number) => assetUrl(`/assets/home-covers/${number}.webp`);
+const otherDesignFinalImage = assetUrl("/assets/projects/other-design/41.webp");
 
 const detailProjects = [
   {
     image: assetUrl("/assets/2.webp"),
-    images: projectImages("paid-live", [5, 6, 7, 8, 9, 10]),
+    images: [...projectImages("paid-live", [5, 6, 7, 8, 9, 10]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("paid-live", [1, 2, 3, 4, 5]),
     slug: "paid-live",
     title: "知识付费直播项目",
@@ -33,7 +34,7 @@ const detailProjects = [
   },
   {
     image: assetUrl("/assets/3.webp"),
-    images: projectImages("pc-live-assistant", [12, 13, 14, 15, 16]),
+    images: [...projectImages("pc-live-assistant", [12, 13, 14, 15, 16]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("pc-live-assistant", [7, 8, 9, 10, 11]),
     slug: "pc-live-assistant",
     title: "PC直播助手",
@@ -45,7 +46,7 @@ const detailProjects = [
   },
   {
     image: assetUrl("/assets/4.webp"),
-    images: projectImages("ai-design-workflow", [18, 19]),
+    images: [...projectImages("ai-design-workflow", [18, 19]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("ai-design-workflow", [12, 13]),
     slug: "ai-design-workflow",
     title: "AI设计工作流",
@@ -57,7 +58,7 @@ const detailProjects = [
   },
   {
     image: assetUrl("/assets/5.webp"),
-    images: projectImages("ai-apps", [21, 22, 23, 24, 25, 26, 27]),
+    images: [...projectImages("ai-apps", [21, 22, 23, 24, 25, 26, 27]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("ai-apps", [14, 15, 16, 17, 18]),
     slug: "ai-apps",
     title: "AI应用集合",
@@ -69,7 +70,7 @@ const detailProjects = [
   },
   {
     image: assetUrl("/assets/6.webp"),
-    images: projectImages("ai-website-design", [29, 30]),
+    images: [...projectImages("ai-website-design", [29, 30]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("ai-website-design", [21, 22]),
     slug: "ai-website-design",
     title: "AI官网设计",
@@ -81,7 +82,7 @@ const detailProjects = [
   },
   {
     image: assetUrl("/assets/7.webp"),
-    images: projectImages("study-abroad", [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]),
+    images: [...projectImages("study-abroad", [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("study-abroad", [29, 30, 31, 32, 33]),
     slug: "study-abroad",
     title: "留学酱",
@@ -269,6 +270,7 @@ export function App() {
 
   const openPhotography = (event) => {
     event?.preventDefault();
+    setNavMotionLocked(aboutOpen && !isMobile);
     setAboutOpen(false);
     setDetailIndex(-1);
     setPhotographyMounted(true);

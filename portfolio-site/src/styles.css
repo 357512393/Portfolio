@@ -325,6 +325,11 @@ button:focus-visible {
   transition: none !important;
 }
 
+.site-nav.is-transition-locked,
+.site-nav.is-transition-locked a {
+  transition: none !important;
+}
+
 .site-nav.is-transition-locked :is(a:hover, a:focus-visible) {
   color: #f4f4f2;
 }
@@ -480,8 +485,7 @@ button:focus-visible {
   max-height: calc(var(--rail-height) * 5 + var(--rail-gap) * 4);
   flex-direction: column;
   gap: var(--rail-gap);
-  overflow-y: auto;
-  overscroll-behavior: contain;
+  overflow: hidden;
   scrollbar-width: none;
   transform: translateY(-50%);
 }
@@ -630,11 +634,6 @@ button:focus-visible {
 
 .photography-page__heading p {
   transition: opacity 100ms ease;
-}
-
-.portfolio-shell:has(.photography-page.is-active.is-entering) > .site-header > .site-nav {
-  opacity: 0;
-  animation: photography-copy-fade 1350ms ease both;
 }
 
 .portfolio-shell > .site-header > .site-nav {
@@ -2006,8 +2005,17 @@ button:focus-visible {
     line-height: 18px;
   }
 
-  .grid-toggle--hint {
+  .grid-toggle--hint,
+  .photography-page__return:not(.is-detail) {
+    bottom: 14px;
+    left: var(--edge-x);
+    display: flex;
+    min-height: 18px;
     margin: 0;
+    align-items: baseline;
+  }
+
+  .grid-toggle--hint {
     cursor: default;
   }
 
