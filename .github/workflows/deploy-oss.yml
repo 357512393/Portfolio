@@ -62,4 +62,6 @@ jobs:
       - name: Sync static site to OSS
         env:
           OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
-        run: ossutil sync portfolio-site/dist/client/ "oss://$OSS_BUCKET/"
+        run: |
+          ossutil sync portfolio-site/dist/client/ "oss://$OSS_BUCKET/"
+          ossutil cp portfolio-site/dist/client/index.html "oss://$OSS_BUCKET/index.html" -f
