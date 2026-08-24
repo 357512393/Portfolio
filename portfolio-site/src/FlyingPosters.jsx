@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Camera, Mesh, Plane, Program, Raycast, Renderer, Texture, Transform } from "ogl";
+import { Camera, Mesh, Plane, Program, Raycast, Renderer, Texture, Transform, Vec3 } from "ogl";
 import "./FlyingPosters.css";
 
 const MAX_CANVAS_DIMENSION = 4096;
@@ -9,6 +9,16 @@ const OVERSIZE_DEVICE_PIXEL_RATIO = 1.5;
 const MOBILE_BREAKPOINT = 809;
 const MOBILE_SCROLL_EASE = 0.09;
 const MOBILE_BEND_LIMIT = 0.32;
+const HOVER_ROTATE_AMPLITUDE = (16 * Math.PI) / 180;
+const HOVER_SCALE = 1.2;
+const HOVER_HIT_PADDING = 100;
+const HOVER_SPRING = { damping: 30, stiffness: 100, mass: 2 };
+const HOVER_LOCAL_CORNERS = [
+  [-0.5, -0.5],
+  [0.5, -0.5],
+  [0.5, 0.5],
+  [-0.5, 0.5],
+];
 
 const vertexShader = `
 precision highp float;
@@ -60,6 +70,18 @@ function lerp(from, to, amount) {
   return from + (to - from) * amount;
 }
 
+function stepSpring(value, velocity, target, deltaSeconds) {
+  const acceleration = (
+    HOVER_SPRING.stiffness * (target - value)
+    - HOVER_SPRING.damping * velocity
+  ) / HOVER_SPRING.mass;
+  const nextVelocity = velocity + acceleration * deltaSeconds;
+  return {
+    value: value + nextVelocity * deltaSeconds,
+    velocity: nextVelocity,
+  };
+}
+
 function wrap(value, length) {
   return ((value + length / 2) % length + length) % length - length / 2;
 }
@@ -83,6 +105,12 @@ class Media {
   constructor(options) {
     Object.assign(this, options);
     this.extra = 0;
+    this.hoverRotationX = 0;
+    this.hoverRotationY = 0;
+    this.hoverScale = 1;
+    this.hoverVelocityX = 0;
+    this.hoverVelocityY = 0;
+    this.hoverScaleVelocity = 0;
     this.createShader();
     this.createMesh();
     this.onResize();
@@ -147,7 +175,7 @@ class Media {
     this.angleStep = compact ? 0.96 : 1.32;
   }
 
-  update(scroll) {
+  update(scroll, hover, deltaSeconds) {
     this.relative = wrap(this.index - scroll.current, this.length);
     const relativeDistance = Math.abs(this.relative);
     const trackDistance = Math.min(relativeDistance, 2) + Math.max(0, relativeDistance - 2) * 0.58;
@@ -163,15 +191,50 @@ class Media {
     // Keep the active poster's right edge fixed as it scales with the viewport,
     // so the added width grows toward the left. The influence fades with depth.
     const anchorWeight = Math.pow(depthProgress, 4);
-    this.plane.position.x = Math.sin(angle) * this.radiusX + this.leftGrowthOffset * anchorWeight;
-    this.plane.position.y = -trackRelative * this.verticalStep;
-    this.plane.position.z = Math.cos(angle) * this.depth;
-    this.plane.rotation.x = Math.cos(angle) * 0.035;
-    this.plane.rotation.y = -Math.sin(angle) * 0.72;
-    this.plane.rotation.z = -Math.sin(angle) * 0.12 + (this.isMobile ? 0 : velocity * 1.8);
+    const isHovered = !this.isMobile && hover?.index === this.index && relativeDistance < 0.5;
+    const targetRotationX = isHovered ? hover.rotationX : 0;
+    const targetRotationY = isHovered ? hover.rotationY : 0;
+    const targetScale = isHovered ? HOVER_SCALE : 1;
+    const rotationXSpring = stepSpring(
+      this.hoverRotationX,
+      this.hoverVelocityX,
+      targetRotationX,
+      deltaSeconds,
+    );
+    const rotationYSpring = stepSpring(
+      this.hoverRotationY,
+      this.hoverVelocityY,
+      targetRotationY,
+      deltaSeconds,
+    );
+    const scaleSpring = stepSpring(
+      this.hoverScale,
+      this.hoverScaleVelocity,
+      targetScale,
+      deltaSeconds,
+    );
+    this.hoverRotationX = rotationXSpring.value;
+    this.hoverVelocityX = rotationXSpring.velocity;
+    this.hoverRotationY = rotationYSpring.value;
+    this.hoverVelocityY = rotationYSpring.velocity;
+    this.hoverScale = scaleSpring.value;
+    this.hoverScaleVelocity = scaleSpring.velocity;
 
     const scale = 0.92 + depthProgress * 0.08;
-    this.plane.scale.set(this.baseScaleX * scale, this.baseScaleY * scale, 1);
+    const hoverAnchorOffset = -(this.baseScaleX * scale * (this.hoverScale - 1)) * 0.5;
+    this.plane.position.x = Math.sin(angle) * this.radiusX
+      + (this.leftGrowthOffset + hoverAnchorOffset) * anchorWeight;
+    this.plane.position.y = -trackRelative * this.verticalStep;
+    this.plane.position.z = Math.cos(angle) * this.depth;
+    this.plane.rotation.x = Math.cos(angle) * 0.035 + this.hoverRotationX;
+    this.plane.rotation.y = -Math.sin(angle) * 0.72 + this.hoverRotationY;
+    this.plane.rotation.z = -Math.sin(angle) * 0.12 + (this.isMobile ? 0 : velocity * 1.8);
+
+    this.plane.scale.set(
+      this.baseScaleX * scale * this.hoverScale,
+      this.baseScaleY * scale * this.hoverScale,
+      1,
+    );
     this.program.uniforms.uBrightness.value = 0.43 + depthProgress * 0.57;
     this.program.uniforms.uBend.value = this.bend;
   }
@@ -193,6 +256,9 @@ class PosterCanvas {
     this.activeIndex = 0;
     this.isDown = false;
     this.hoveredIndex = null;
+    this.hover = null;
+    this.canTilt = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches ?? false;
+    this.hoverProjectionCorners = [new Vec3(), new Vec3(), new Vec3(), new Vec3()];
     this.hoverFrame = 0;
     this.clickCandidate = null;
     this.dragDistance = 0;
@@ -203,6 +269,7 @@ class PosterCanvas {
     this.onPointerDown = this.onPointerDown.bind(this);
     this.onPointerMove = this.onPointerMove.bind(this);
     this.onPointerUp = this.onPointerUp.bind(this);
+    this.onPointerLeave = this.onPointerLeave.bind(this);
     this.update = this.update.bind(this);
 
     this.createRenderer();
@@ -260,6 +327,7 @@ class PosterCanvas {
     const fov = (this.camera.fov * Math.PI) / 180;
     const height = 2 * Math.tan(fov / 2) * this.camera.position.z;
     this.viewport = { height, width: height * this.camera.aspect };
+    this.canTilt = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches ?? false;
     this.medias?.forEach((media) => media.onResize({ screen: this.screen, viewport: this.viewport }));
   }
 
@@ -294,7 +362,7 @@ class PosterCanvas {
     return new Set([previous, this.activeIndex, next]);
   }
 
-  hitTest(pointerEvent) {
+  getPointerHit(pointerEvent) {
     const pointer = pointerEvent.touches ? pointerEvent.touches[0] : pointerEvent;
     if (!pointer) return null;
 
@@ -312,13 +380,80 @@ class PosterCanvas {
     ];
     this.raycast.castMouse(this.camera, mouse);
     const hits = this.raycast.intersectMeshes(this.medias.map((media) => media.plane), { cullFace: false });
-    const nearestIndex = hits[0]?.posterIndex;
-    return this.getInteractiveIndexes().has(nearestIndex) ? nearestIndex : null;
+    const mesh = hits[0];
+    const nearestIndex = mesh?.posterIndex;
+    if (!this.getInteractiveIndexes().has(nearestIndex)) return null;
+    return { index: nearestIndex, uv: mesh.hit?.uv };
+  }
+
+  hitTest(pointerEvent) {
+    return this.getPointerHit(pointerEvent)?.index ?? null;
+  }
+
+  getExpandedActiveHover(pointerEvent, directHit) {
+    if (directHit?.index === this.activeIndex) return directHit;
+    if (directHit || !this.canTilt) return null;
+
+    const pointer = pointerEvent.touches ? pointerEvent.touches[0] : pointerEvent;
+    const plane = this.medias[this.activeIndex]?.plane;
+    if (!pointer || !plane) return null;
+
+    const canvasRect = this.canvas.getBoundingClientRect();
+    let left = Infinity;
+    let right = -Infinity;
+    let top = Infinity;
+    let bottom = -Infinity;
+
+    this.hoverProjectionCorners.forEach((corner, index) => {
+      corner.set(HOVER_LOCAL_CORNERS[index][0], HOVER_LOCAL_CORNERS[index][1], 0)
+        .applyMatrix4(plane.worldMatrix);
+      this.camera.project(corner);
+      const screenX = canvasRect.left + ((corner.x + 1) * canvasRect.width) / 2;
+      const screenY = canvasRect.top + ((1 - corner.y) * canvasRect.height) / 2;
+      left = Math.min(left, screenX);
+      right = Math.max(right, screenX);
+      top = Math.min(top, screenY);
+      bottom = Math.max(bottom, screenY);
+    });
+
+    if (
+      pointer.clientX < left - HOVER_HIT_PADDING
+      || pointer.clientX > right + HOVER_HIT_PADDING
+      || pointer.clientY < top - HOVER_HIT_PADDING
+      || pointer.clientY > bottom + HOVER_HIT_PADDING
+    ) return null;
+
+    const width = Math.max(1, right - left);
+    const height = Math.max(1, bottom - top);
+    const uvX = Math.max(0, Math.min(1, (pointer.clientX - left) / width));
+    const uvY = 1 - Math.max(0, Math.min(1, (pointer.clientY - top) / height));
+    return { index: this.activeIndex, uv: { x: uvX, y: uvY } };
   }
 
   updateHover(pointerEvent) {
-    this.hoveredIndex = this.hitTest(pointerEvent);
+    const directHit = this.getPointerHit(pointerEvent);
+    const hoverHit = this.getExpandedActiveHover(pointerEvent, directHit);
+    this.hoveredIndex = directHit?.index ?? null;
     this.canvas.style.cursor = this.hoveredIndex === null ? "default" : "pointer";
+
+    const restingOnActivePoster = this.canTilt
+      && hoverHit?.index === this.activeIndex
+      && !this.introActive
+      && Math.abs(this.scroll.current - Math.round(this.scroll.current)) < 0.08
+      && Math.abs(this.scroll.current - this.scroll.target) < 0.12;
+    if (!restingOnActivePoster || !hoverHit.uv) {
+      this.hover = null;
+      return;
+    }
+
+    this.hover = {
+      index: hoverHit.index,
+      // React Bits calculates against CSS screen coordinates, whose Y axis
+      // points down. OGL's plane Y axis points up, so only X rotation needs
+      // a sign conversion; Y rotation keeps the component source direction.
+      rotationX: (0.5 - hoverHit.uv.y) * 2 * HOVER_ROTATE_AMPLITUDE,
+      rotationY: (hoverHit.uv.x - 0.5) * 2 * HOVER_ROTATE_AMPLITUDE,
+    };
   }
 
   onPointerDown(event) {
@@ -326,6 +461,7 @@ class PosterCanvas {
     this.cancelIntro();
     window.clearTimeout(this.snapTimer);
     this.isDown = true;
+    this.hover = null;
     this.scroll.position = this.scroll.current;
     const pointer = event.touches ? event.touches[0] : event;
     this.startX = pointer.clientX;
@@ -361,6 +497,13 @@ class PosterCanvas {
     this.updateHover(pointer);
   }
 
+  onPointerLeave() {
+    if (this.isDown) return;
+    this.hoveredIndex = null;
+    this.hover = null;
+    this.canvas.style.cursor = "default";
+  }
+
   goToIndex(index, immediate = false) {
     this.cancelIntro();
     window.clearTimeout(this.snapTimer);
@@ -385,8 +528,11 @@ class PosterCanvas {
   }
 
   update() {
+    const now = performance.now();
+    const deltaSeconds = Math.min((now - (this.lastFrameAt || now)) / 1000, 1 / 30) || 1 / 60;
+    this.lastFrameAt = now;
     if (this.introActive) {
-      const progress = Math.min(1, (performance.now() - this.introStartedAt) / this.introDuration);
+      const progress = Math.min(1, (now - this.introStartedAt) / this.introDuration);
       // Ease-out cubic gives the posters a quick lift followed by a soft settle.
       const eased = 1 - ((1 - progress) ** 3);
       this.scroll.current = lerp(this.introStart, 0, eased);
@@ -403,7 +549,7 @@ class PosterCanvas {
         : this.scroll.ease;
       this.scroll.current = lerp(this.scroll.current, this.scroll.target, effectiveScrollEase);
     }
-    this.medias.forEach((media) => media.update(this.scroll));
+    this.medias.forEach((media) => media.update(this.scroll, this.hover, deltaSeconds));
 
     const closest = this.medias.reduce((best, media) => {
       const distance = Math.abs(media.relative);
@@ -431,6 +577,7 @@ class PosterCanvas {
     window.addEventListener("resize", this.onResize);
     window.addEventListener("wheel", this.onWheel, { passive: true });
     this.canvas.addEventListener("mousedown", this.onPointerDown);
+    this.canvas.addEventListener("mouseleave", this.onPointerLeave);
     window.addEventListener("mousemove", this.onPointerMove);
     window.addEventListener("mouseup", this.onPointerUp);
     this.canvas.addEventListener("touchstart", this.onPointerDown, { passive: true });
@@ -444,6 +591,7 @@ class PosterCanvas {
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("wheel", this.onWheel);
     this.canvas.removeEventListener("mousedown", this.onPointerDown);
+    this.canvas.removeEventListener("mouseleave", this.onPointerLeave);
     window.removeEventListener("mousemove", this.onPointerMove);
     window.removeEventListener("mouseup", this.onPointerUp);
     this.canvas.removeEventListener("touchstart", this.onPointerDown);
