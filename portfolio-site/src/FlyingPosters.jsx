@@ -95,7 +95,7 @@ void main() {
     gridLine(vUv.x, 0.745, uResolution.x)
   );
   float horizontal = gridLine(vUv.y, 0.33, uResolution.y);
-  float luminance = min(1.0, vertical * 0.01 + horizontal * 0.01);
+  float luminance = min(1.0, vertical * 0.02 + horizontal * 0.02);
   gl_FragColor = vec4(vec3(luminance), 1.0);
 }
 `;
