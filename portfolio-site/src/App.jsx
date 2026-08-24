@@ -22,7 +22,7 @@ const detailProjects = [
   {
     image: assetUrl("/assets/2.webp"),
     images: projectImages("paid-live", [5, 6, 7, 8, 9, 10]),
-    thumbnails: projectThumbnailImages("paid-live", [1, 2, 3, 4, 5, 6]),
+    thumbnails: projectThumbnailImages("paid-live", [1, 2, 3, 4, 5]),
     slug: "paid-live",
     title: "知识付费直播项目",
     type: "产品体验设计",
@@ -58,7 +58,7 @@ const detailProjects = [
   {
     image: assetUrl("/assets/5.webp"),
     images: projectImages("ai-apps", [21, 22, 23, 24, 25, 26, 27]),
-    thumbnails: projectThumbnailImages("ai-apps", [14, 15, 16, 17, 18, 19, 20]),
+    thumbnails: projectThumbnailImages("ai-apps", [14, 15, 16, 17, 18]),
     slug: "ai-apps",
     title: "AI应用集合",
     type: "AI助手与智能体",
@@ -82,7 +82,7 @@ const detailProjects = [
   {
     image: assetUrl("/assets/7.webp"),
     images: projectImages("study-abroad", [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]),
-    thumbnails: projectThumbnailImages("study-abroad", [29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41]),
+    thumbnails: projectThumbnailImages("study-abroad", [29, 30, 31, 32, 33]),
     slug: "study-abroad",
     title: "留学酱",
     type: "产品体验设计",
@@ -93,8 +93,8 @@ const detailProjects = [
   },
   {
     image: assetUrl("/assets/8.webp"),
-    images: projectImages("other-design", [32, 33, 34, 35, 36, 37]),
-    thumbnails: projectThumbnailImages("other-design", [23, 24, 25, 26, 27, 28]),
+    images: projectImages("other-design", [32, 33, 34, 35, 36, 37, 38, 39, 40, 41]),
+    thumbnails: projectThumbnailImages("other-design", [23, 24, 25, 26, 27]),
     slug: "other-design",
     title: "其他设计",
     type: "功能体验优化",
