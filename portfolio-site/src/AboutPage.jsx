@@ -1,24 +1,40 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import SlashHoverLabel from "./SlashHoverLabel";
 
 export default function AboutPage({ onClose, onOpenPhotography }) {
+  const [navEntering, setNavEntering] = useState(true);
+
   useEffect(() => {
     const handleKeyDown = (event) => { if (event.key === "Escape") onClose(); };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [onClose]);
 
-  const reveal = (content, className = "") => (
-    <span className={`about-reveal${className ? ` ${className}` : ""}`}><span>{content}</span></span>
+  useEffect(() => {
+    let secondFrame;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => setNavEntering(false));
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      if (secondFrame) window.cancelAnimationFrame(secondFrame);
+    };
+  }, []);
+
+  const reveal = (content, className = "", immediate = false) => (
+    <span className={`about-reveal${className ? ` ${className}` : ""}`}>
+      <span style={immediate ? { animation: "none", opacity: 1 } : undefined}>{content}</span>
+    </span>
   );
 
   return (
     <section className="about-page is-revealing" aria-label="关于">
       <header className="about-page__header">
-        <nav className="site-nav about-page__nav" aria-label="页面导航">
+        <nav className={`site-nav about-page__nav${navEntering ? " is-entering" : ""}`} aria-label="页面导航">
           <a href="#work" aria-label="项目" onClick={onClose}>{reveal(<SlashHoverLabel label="项目" />)}</a>
           <a href="#photography" aria-label="摄影" onClick={onOpenPhotography}>{reveal(<SlashHoverLabel label="摄影" />)}</a>
-          <a className="is-current" href="#about-me" aria-label="关于" aria-current="page" onClick={(event) => event.preventDefault()}>{reveal(<SlashHoverLabel label="关于" />)}</a>
+          <a className="is-current" href="#about-me" aria-label="关于" aria-current="page" onClick={(event) => event.preventDefault()}>{reveal(<SlashHoverLabel label="关于" />, "", true)}</a>
         </nav>
       </header>
 
