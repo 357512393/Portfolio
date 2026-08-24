@@ -97,23 +97,33 @@ button:focus-visible {
   flex-direction: column;
   color: #f2f1ec;
   font-family: "Geist", "Helvetica Neue", Arial, sans-serif;
-  font-size: clamp(118px, 12.3vw, 218px);
+  font-size: clamp(177px, 18.45vw, 327px);
   font-weight: 800;
   letter-spacing: -0.105em;
   line-height: 0.72;
   text-transform: none;
+  transform: translate3d(0, 0, 0) scale(1);
+  transform-origin: left bottom;
+  backface-visibility: hidden;
+  will-change: transform;
   transition:
-    bottom 900ms linear,
-    font-size 900ms linear,
-    line-height 900ms linear,
-    letter-spacing 900ms linear;
+    transform 700ms linear,
+    letter-spacing 700ms linear;
 }
 
 .preloader.is-moving .preloader__name {
-  bottom: calc(100vh - var(--edge-y) - 2em);
-  font-size: 16px;
-  line-height: 1;
   letter-spacing: -0.055em;
+}
+
+.preloader.is-moving .preloader__name[data-scale-ready="true"] {
+  transform:
+    translate3d(0, var(--preloader-brand-shift-y), 0)
+    scale(var(--preloader-brand-scale));
+}
+
+.preloader.is-moving .preloader__name:not([data-scale-ready="true"]) {
+  bottom: calc(100vh - var(--edge-y) - 23.04px);
+  font-size: 16px;
 }
 
 .preloader__line {
@@ -164,8 +174,27 @@ button:focus-visible {
   .preloader__name {
     bottom: 5%;
     left: var(--edge-x);
-    font-size: clamp(84px, 23vw, 180px);
+    font-size: clamp(100.8px, 27.6vw, 216px);
+    letter-spacing: -0.055em;
+    transform: translate3d(0, 0, 0) scale3d(1, 1, 1);
+    transform-style: preserve-3d;
+    transition: transform 700ms linear;
   }
+
+  .preloader.is-moving .preloader__name {
+    letter-spacing: -0.055em;
+  }
+
+  .preloader.is-moving .preloader__name[data-scale-ready="true"] {
+    transform:
+      translate3d(0, var(--preloader-brand-shift-y), 0)
+      scale3d(
+        var(--preloader-brand-scale),
+        var(--preloader-brand-scale),
+        1
+      );
+  }
+
 }
 
 .site-header {
@@ -601,7 +630,7 @@ button:focus-visible {
   transition: opacity 100ms ease;
 }
 
-.portfolio-shell:has(.photography-page.is-entering) > .site-header > .site-nav {
+.portfolio-shell:has(.photography-page.is-active.is-entering) > .site-header > .site-nav {
   animation: photography-copy-fade 100ms ease-out forwards;
 }
 
@@ -1136,6 +1165,10 @@ button:focus-visible {
   overscroll-behavior: none;
 }
 
+.photography-page.is-hidden {
+  display: none;
+}
+
 .photography-page__heading {
   position: absolute;
   z-index: 3;
@@ -1244,6 +1277,8 @@ button:focus-visible {
 }
 
 .photography-page__card img {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
@@ -1251,6 +1286,20 @@ button:focus-visible {
   filter: brightness(0.8) saturate(0.92);
   transition: filter 280ms ease;
   user-select: none;
+}
+
+.photography-page__card .photography-page__card-lqip {
+  filter: blur(18px) brightness(0.62) saturate(0.8);
+  transform: scale(1.1);
+}
+
+.photography-page__card .photography-page__card-image {
+  opacity: 0;
+  transition: opacity 220ms ease, filter 280ms ease;
+}
+
+.photography-page__card .photography-page__card-image.is-loaded {
+  opacity: 1;
 }
 
 .photography-page__return {
@@ -1274,6 +1323,9 @@ button:focus-visible {
   overflow: hidden;
   background: #000;
   pointer-events: auto;
+  isolation: isolate;
+  backface-visibility: hidden;
+  transform: translateZ(0);
 }
 
 .photography-page__thumbnails {
@@ -1324,6 +1376,12 @@ button:focus-visible {
   height: auto;
   max-height: none;
   object-fit: contain;
+  opacity: 0;
+  transition: opacity 100ms ease-out;
+}
+
+.photography-page__thumbnail img.is-loaded {
+  opacity: 1;
 }
 
 .photography-page__thumbnail:not([aria-current="true"]):hover,
@@ -1346,10 +1404,37 @@ button:focus-visible {
   place-items: center;
   opacity: 0;
   pointer-events: none;
+  background: #000;
+  contain: paint;
 }
 
 .photography-page__focus-item.is-active {
   opacity: 1;
+}
+
+.photography-page__focus-media {
+  display: grid;
+  width: auto;
+  height: auto;
+  max-width: min(calc(100vw - 352px), 1180px);
+  max-height: calc(100vh - 128px);
+  place-items: center;
+  overflow: hidden;
+}
+
+.photography-page__focus-media > img {
+  grid-area: 1 / 1;
+  display: block;
+  width: auto;
+  height: auto;
+  max-width: min(calc(100vw - 352px), 1180px);
+  max-height: calc(100vh - 128px);
+  object-fit: contain;
+}
+
+.photography-page__detail-lqip {
+  filter: blur(22px) brightness(0.7) saturate(0.82);
+  transform: scale(1.025);
 }
 
 .photography-page__detail-count {
@@ -1365,12 +1450,17 @@ button:focus-visible {
 
 .photography-page__detail-image {
   display: block;
-  width: auto;
-  height: auto;
-  max-width: min(calc(100vw - 352px), 1180px);
-  max-height: calc(100vh - 128px);
+  opacity: 0;
   object-fit: contain;
   transform-origin: center center;
+  transition: opacity 220ms ease;
+}
+
+.photography-page__detail-image.is-loaded {
+  opacity: 1;
+}
+
+.photography-page__focus-item.is-active .photography-page__detail-image {
   will-change: opacity;
 }
 
@@ -1847,6 +1937,25 @@ button:focus-visible {
     font-size: 13px;
   }
 
+  .site-nav a:hover {
+    color: #858585;
+  }
+
+  .site-nav a.is-current {
+    color: #f4f4f2;
+  }
+
+  .site-nav a:hover .slash-hover-label__glyph,
+  .site-nav.is-transition-locked a:hover .slash-hover-label__glyph {
+    transform: scaleX(1) !important;
+  }
+
+  .site-nav a:hover .slash-hover-label__text,
+  .site-nav.is-transition-locked a:hover .slash-hover-label__text {
+    transform: translate3d(0, 0, 0) !important;
+    transition-delay: 0ms;
+  }
+
   .project-index {
     top: 50%;
     left: var(--edge-x);
@@ -1871,8 +1980,8 @@ button:focus-visible {
   }
 
   .photography-page__track {
-    top: 50%;
-    left: 50%;
+    top: calc(50% + 50px);
+    left: calc(50% - 50px);
   }
 
   .photography-page__stage {
@@ -1883,10 +1992,33 @@ button:focus-visible {
 
   .photography-page__hint {
     right: var(--edge-x);
-    bottom: var(--edge-y);
-    font-size: 13px;
   }
 
+  .grid-toggle,
+  .photography-page__return,
+  .photography-page__hint,
+  .photography-page__detail-count {
+    bottom: 14px;
+    font-size: 13px;
+    line-height: 18px;
+  }
+
+  .grid-toggle--hint {
+    margin: 0;
+    cursor: default;
+  }
+
+  .photography-page__return:hover .slash-hover-label__glyph {
+    transform: scaleX(1) !important;
+  }
+
+  .photography-page__return:hover .slash-hover-label__text {
+    transform: translate3d(0, 0, 0) !important;
+    transition-delay: 0ms;
+  }
+
+  .photography-page__focus-media,
+  .photography-page__focus-media > img,
   .photography-page__detail-image {
     max-width: calc(100vw - 108px);
     max-height: calc(100vh - 112px);

@@ -1,10 +1,12 @@
-import { useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import FlyingPosters from "./FlyingPosters";
-import ProjectDetail from "./ProjectDetail";
-import AboutPage from "./AboutPage";
-import PhotographyPage from "./PhotographyPage";
+import AboutPage from "./AboutPage.jsx";
+import PhotographyPage, { preloadPhotographyEntry } from "./PhotographyPage.jsx";
 import SlashHoverLabel from "./SlashHoverLabel";
+import Preloader from "./Preloader";
 import { assetUrl } from "./assetUrl";
+
+const ProjectDetail = lazy(() => import("./ProjectDetail.jsx"));
 
 const projectImages = (slug, numbers) => (
   numbers.map((number) => assetUrl(`/assets/projects/${slug}/${number}.webp`))
@@ -167,20 +169,36 @@ export function App() {
   const [detailIndex, setDetailIndex] = useState(() => detailProjectIndexFromHash());
   const [aboutOpen, setAboutOpen] = useState(() => isAboutHash());
   const [photographyOpen, setPhotographyOpen] = useState(() => isPhotographyHash());
+  const [photographyMounted, setPhotographyMounted] = useState(() => isPhotographyHash());
   const [navMotionLocked, setNavMotionLocked] = useState(false);
+  const [initialNonHomeEntry] = useState(() => (
+    isAboutHash() || isPhotographyHash() || detailProjectIndexFromHash() >= 0
+  ));
+  const [showPreloader] = useState(() => !initialNonHomeEntry);
+  const [preloaderDone, setPreloaderDone] = useState(initialNonHomeEntry);
+  const hideHomeForDirectEntry = aboutOpen || photographyOpen || (initialNonHomeEntry && detailIndex >= 0);
+  const isHomeRoute = !aboutOpen && !photographyOpen && detailIndex < 0;
   const images = useMemo(() => homeProjects.map((project) => project.image), []);
   const active = homeProjects[activeIndex];
   const activeDetailProject = detailProjects.find(
     (project) => project.slug === (active.detailSlug ?? active.slug),
   );
   const thumbnailImages = activeDetailProject?.thumbnails ?? activeDetailProject?.images ?? [];
+  const preloadSources = useMemo(() => (
+    [
+      ...images,
+      ...detailProjects.flatMap((project) => [project.image, ...project.images, ...project.thumbnails]),
+    ]
+  ), [images]);
 
   useEffect(() => {
     const syncFromHash = () => {
       const index = detailProjectIndexFromHash();
+      const nextPhotographyOpen = isPhotographyHash();
       setDetailIndex(index);
       setAboutOpen(isAboutHash());
-      setPhotographyOpen(isPhotographyHash());
+      setPhotographyOpen(nextPhotographyOpen);
+      if (nextPhotographyOpen) setPhotographyMounted(true);
       if (index >= 0) {
         const homeIndex = homeProjectIndexForDetail(index);
         if (homeIndex >= 0) {
@@ -249,10 +267,14 @@ export function App() {
     window.history.pushState({}, "", "#about-me");
   };
 
-  const openPhotography = (event) => {
+  const openPhotography = async (event) => {
     event?.preventDefault();
+    const entryHash = window.location.hash;
+    await preloadPhotographyEntry();
+    if (window.location.hash !== entryHash) return;
     setAboutOpen(false);
     setDetailIndex(-1);
+    setPhotographyMounted(true);
     setPhotographyOpen(true);
     window.history.pushState({}, "", "#photography");
   };
@@ -263,15 +285,23 @@ export function App() {
   };
 
   const closeAbout = () => {
-    setNavMotionLocked(true);
+    setNavMotionLocked(!isMobile);
     setAboutOpen(false);
     window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
   };
 
   return (
-    <main className="portfolio-shell">
+    <main className={`portfolio-shell${preloaderDone ? " is-home-ready" : ""}${hideHomeForDirectEntry ? " is-non-home-entry" : ""}`}>
+      {(showPreloader || isHomeRoute) && (
+        <Preloader
+          sources={preloadSources}
+          criticalCount={images.length}
+          visible={isHomeRoute}
+          animate={showPreloader}
+          onComplete={() => setPreloaderDone(true)}
+        />
+      )}
       <header className={`site-header${photographyOpen ? " is-photography-open" : ""}`}>
-        <h1 className="brand">UI设计师</h1>
         <div className="intro-block">
           <time>厦门 {new Intl.DateTimeFormat("zh-CN", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date())}</time>
           <p className="intro-block__description">
@@ -313,7 +343,7 @@ export function App() {
       </section>
 
       <section className="gallery-stage" aria-label="作品图片滑动区域">
-        <FlyingPosters
+        {preloaderDone && !hideHomeForDirectEntry && <FlyingPosters
           items={images}
           planeWidth={posterWidth}
           planeHeight={posterHeight}
@@ -326,7 +356,7 @@ export function App() {
           focusRequest={focusRequest}
           onIndexChange={setActiveIndex}
           onPosterClick={handlePosterClick}
-        />
+        />}
       </section>
 
       <section className="project-type" aria-live="polite">
@@ -354,32 +384,38 @@ export function App() {
             aria-label={`查看${active.title}第${index + 2}张图片`}
             onClick={() => openHomeProject(activeIndex)}
           >
-            <img src={image} alt="" />
+            <img src={image} alt="" loading="eager" decoding="async" fetchPriority="high" />
           </button>
         ))}
       </aside>
 
-      <button
-        className="grid-toggle"
-        type="button"
-        aria-label="上下滑动"
-        onClick={() => selectProject((activeIndex + 1) % homeProjects.length)}
-      >
-        <SlashHoverLabel label="上下滑动" />
-      </button>
+      {isMobile ? (
+        <p className="grid-toggle grid-toggle--hint">滑动浏览</p>
+      ) : (
+        <button
+          className="grid-toggle"
+          type="button"
+          aria-label="上下滑动"
+          onClick={() => selectProject((activeIndex + 1) % homeProjects.length)}
+        >
+          <SlashHoverLabel label="上下滑动" />
+        </button>
+      )}
       <span id="about" className="about-anchor" aria-hidden="true" />
 
       {detailIndex >= 0 && (
-        <ProjectDetail
+        <Suspense fallback={null}><ProjectDetail
           projects={detailProjects}
           activeIndex={detailIndex}
           onSelect={(index) => openDetailProject(index, true)}
           onClose={closeProject}
-        />
+        /></Suspense>
       )}
 
-      {aboutOpen && <AboutPage onClose={closeAbout} />}
-      {photographyOpen && <PhotographyPage onClose={closePhotography} />}
+      {aboutOpen && <AboutPage onClose={closeAbout} onOpenPhotography={openPhotography} />}
+      {photographyMounted && (
+        <PhotographyPage active={photographyOpen} onClose={closePhotography} />
+      )}
     </main>
   );
 }

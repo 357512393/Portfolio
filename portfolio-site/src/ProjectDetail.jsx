@@ -22,6 +22,7 @@ function ProjectMedia({ project, mobile = false, switching = false, contentRef }
             alt={`${project.title}项目展示 ${index + 1}`}
             loading="eager"
             decoding="async"
+            fetchPriority={index === 0 ? "high" : "auto"}
           />
         </figure>
       ))}
@@ -129,7 +130,7 @@ function ProjectMediaPreload({ projects, activeIndex }) {
   return (
     <div className="project-page__media-preload" aria-hidden="true">
       {sources.map((source) => (
-        <img key={source} src={source} alt="" loading="eager" decoding="async" />
+        <img key={source} src={source} alt="" loading="eager" decoding="async" fetchPriority="high" />
       ))}
     </div>
   );

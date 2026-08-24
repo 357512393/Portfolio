@@ -4,7 +4,11 @@ import "./FlyingPosters.css";
 
 const MAX_CANVAS_DIMENSION = 4096;
 const MAX_DEVICE_PIXEL_RATIO = 2;
+const MOBILE_MAX_DEVICE_PIXEL_RATIO = 1.5;
 const OVERSIZE_DEVICE_PIXEL_RATIO = 1.5;
+const MOBILE_BREAKPOINT = 809;
+const MOBILE_SCROLL_EASE = 0.09;
+const MOBILE_BEND_LIMIT = 0.32;
 
 const vertexShader = `
 precision highp float;
@@ -61,7 +65,10 @@ function wrap(value, length) {
 }
 
 function getCanvasDpr(width, height) {
-  const deviceDpr = Math.min(window.devicePixelRatio || 1, MAX_DEVICE_PIXEL_RATIO);
+  const maximumDpr = width <= MOBILE_BREAKPOINT
+    ? MOBILE_MAX_DEVICE_PIXEL_RATIO
+    : MAX_DEVICE_PIXEL_RATIO;
+  const deviceDpr = Math.min(window.devicePixelRatio || 1, maximumDpr);
   const maxCssDimension = Math.max(width, height);
   const maxSafeDpr = MAX_CANVAS_DIMENSION / maxCssDimension;
 
@@ -102,6 +109,9 @@ class Media {
     });
 
     const image = new Image();
+    image.decoding = "async";
+    image.loading = "eager";
+    image.fetchPriority = "high";
     image.src = this.image;
     image.onload = () => {
       texture.image = image;
@@ -127,6 +137,7 @@ class Media {
     this.plane.program.uniforms.uPlaneSize.value = [this.baseScaleX, this.baseScaleY];
 
     const compact = this.screen.width < 640;
+    this.isMobile = this.screen.width <= MOBILE_BREAKPOINT;
     this.radiusX = this.viewport.width * (compact ? 0.255 : 0.265);
     this.verticalStep = this.viewport.height * (compact ? 0.18 : 0.195);
     this.depth = compact ? 2.35 : 4.2;
@@ -144,8 +155,10 @@ class Media {
     const angle = trackRelative * this.angleStep;
     const depthProgress = (Math.cos(angle) + 1) / 2;
     const velocity = Math.max(-0.08, Math.min(0.08, scroll.current - scroll.last));
-    const bendTarget = Math.max(-1, Math.min(1, velocity * 19));
-    this.bend = lerp(this.bend || 0, bendTarget, 0.2);
+    const bendTarget = this.isMobile
+      ? Math.max(-MOBILE_BEND_LIMIT, Math.min(MOBILE_BEND_LIMIT, velocity * 6))
+      : Math.max(-1, Math.min(1, velocity * 19));
+    this.bend = lerp(this.bend || 0, bendTarget, this.isMobile ? 0.12 : 0.2);
 
     // Keep the active poster's right edge fixed as it scales with the viewport,
     // so the added width grows toward the left. The influence fades with depth.
@@ -155,7 +168,7 @@ class Media {
     this.plane.position.z = Math.cos(angle) * this.depth;
     this.plane.rotation.x = Math.cos(angle) * 0.035;
     this.plane.rotation.y = -Math.sin(angle) * 0.72;
-    this.plane.rotation.z = -Math.sin(angle) * 0.12 + velocity * 1.8;
+    this.plane.rotation.z = -Math.sin(angle) * 0.12 + (this.isMobile ? 0 : velocity * 1.8);
 
     const scale = 0.92 + depthProgress * 0.08;
     this.plane.scale.set(this.baseScaleX * scale, this.baseScaleY * scale, 1);
@@ -204,11 +217,12 @@ class PosterCanvas {
     const rect = this.container.getBoundingClientRect();
     this.renderer = new Renderer({
       canvas: this.canvas,
-      alpha: true,
+      alpha: false,
       antialias: true,
       dpr: getCanvasDpr(rect.width, rect.height),
     });
     this.gl = this.renderer.gl;
+    this.gl.clearColor(0, 0, 0, 1);
     this.camera = new Camera(this.gl);
     this.raycast = new Raycast();
     this.camera.fov = this.cameraFov;
@@ -384,7 +398,10 @@ class PosterCanvas {
         this.onIndexChange?.(0);
       }
     } else {
-      this.scroll.current = lerp(this.scroll.current, this.scroll.target, this.scroll.ease);
+      const effectiveScrollEase = this.screen.width <= MOBILE_BREAKPOINT
+        ? Math.max(this.scroll.ease, MOBILE_SCROLL_EASE)
+        : this.scroll.ease;
+      this.scroll.current = lerp(this.scroll.current, this.scroll.target, effectiveScrollEase);
     }
     this.medias.forEach((media) => media.update(this.scroll));
 

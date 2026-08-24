@@ -70,6 +70,70 @@ const PHOTOGRAPHY_IMAGES = [
 ].map((filename) => assetUrl(`/assets/photography/${filename}`));
 
 const PHOTOGRAPHY_ARCHIVE = PHOTOGRAPHY_IMAGES;
+export const PHOTOGRAPHY_COVERS = PHOTOGRAPHY_ARCHIVE.map((_, index) => (
+  assetUrl(`/assets/photography-covers/${index + 1}.webp`)
+));
+export const PHOTOGRAPHY_THUMBNAILS = PHOTOGRAPHY_ARCHIVE.map((_, index) => (
+  assetUrl(`/assets/photography-thumbnails/${index + 1}.webp`)
+));
+
+const PHOTOGRAPHY_DIMENSIONS = [
+  [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 2164], [1440, 2164], [1440, 2164], [1440, 2164],
+  [1440, 2164], [1440, 1918], [1440, 1918], [1440, 1918], [1440, 1918], [1440, 1918], [1440, 1918], [1440, 1800],
+  [1440, 918], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1080], [1440, 1920], [1440, 1920],
+  [1440, 1020], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920],
+  [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1924], [1440, 2164], [1440, 2110], [1440, 2162], [1440, 2162],
+  [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 2210],
+  [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1922], [1440, 1920], [3394, 1440], [1440, 1920], [1440, 960],
+  [1440, 960], [1440, 612], [2390, 1344], [1440, 1920], [1366, 2560], [1440, 2840], [1440, 1920], [1440, 1920],
+];
+
+const imageLoadCache = new Map();
+
+function preloadImage(src, priority = "auto") {
+  if (imageLoadCache.has(src)) return imageLoadCache.get(src);
+  const load = new Promise((resolve) => {
+    const image = new Image();
+    image.decoding = "async";
+    image.fetchPriority = priority;
+    const finish = () => resolve(src);
+    image.onload = () => Promise.resolve(image.decode?.()).catch(() => {}).then(finish);
+    image.onerror = finish;
+    image.src = src;
+  });
+  imageLoadCache.set(src, load);
+  return load;
+}
+
+async function preloadBatch(sources, concurrency, priority) {
+  let cursor = 0;
+  await Promise.all(Array.from({ length: Math.min(concurrency, sources.length) }, async () => {
+    while (cursor < sources.length) {
+      const source = sources[cursor];
+      cursor += 1;
+      await preloadImage(source, priority);
+    }
+  }));
+}
+
+let photographyEntryPreload;
+export function preloadPhotographyEntry() {
+  if (!photographyEntryPreload) {
+    photographyEntryPreload = Promise.all([
+      preloadBatch(PHOTOGRAPHY_COVERS.slice(0, 9), 6, "high"),
+      preloadBatch(PHOTOGRAPHY_THUMBNAILS, 8, "high"),
+    ]);
+  }
+  return photographyEntryPreload;
+}
+
+function detailWindowIndices(index) {
+  if (index === null) return [];
+  const lastIndex = PHOTOGRAPHY_ARCHIVE.length - 1;
+  const start = Math.max(0, index - 3);
+  const end = Math.min(lastIndex, index + 3);
+  return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
+}
 
 function selectedImageFromHash() {
   if (typeof window === "undefined") return null;
@@ -77,8 +141,13 @@ function selectedImageFromHash() {
   return value >= 1 && value <= PHOTOGRAPHY_ARCHIVE.length ? value - 1 : null;
 }
 
-export default function PhotographyPage({ onClose }) {
+export default function PhotographyPage({ active = true, onClose }) {
   const [isEntering, setIsEntering] = useState(true);
+  const [deferredCoversEnabled, setDeferredCoversEnabled] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(selectedImageFromHash);
+  const [loadedOriginalIndices, setLoadedOriginalIndices] = useState(() => (
+    new Set(detailWindowIndices(selectedImageFromHash()))
+  ));
   const stageRef = useRef(null);
   const trackRef = useRef(null);
   const thumbnailRailRef = useRef(null);
@@ -91,11 +160,17 @@ export default function PhotographyPage({ onClose }) {
     const timer = window.setTimeout(() => setIsEntering(false), reducedMotion ? 1 : 1250);
     return () => window.clearTimeout(timer);
   }, []);
+  useEffect(() => {
+    preloadPhotographyEntry();
+  }, []);
   // Mobile is a finite gallery. Desktop keeps one duplicate cycle for
   // seamless looping while avoiding unnecessary image decoding.
   const cycleCount = mobile ? 1 : 2;
   const initialCycle = mobile ? 0 : 1;
   const initialProgress = PHOTOGRAPHY_ARCHIVE.length * initialCycle;
+  const motionInitializedRef = useRef(false);
+  const deferredCardsRevealedRef = useRef(false);
+  const initialGateUnlockedRef = useRef(false);
   const motionRef = useRef({
     current: initialProgress,
     target: initialProgress,
@@ -105,7 +180,19 @@ export default function PhotographyPage({ onClose }) {
     dragDistance: 0,
     pressedImage: null,
   });
-  const [selectedImage, setSelectedImage] = useState(selectedImageFromHash);
+  useEffect(() => {
+    // The component is mounted only while the photography route is active for
+    // the first time. Mark it resumable only after a real route change hides
+    // it; StrictMode's mount rehearsal never changes `active` to false.
+    if (!active) motionInitializedRef.current = true;
+  }, [active]);
+  const ensureOriginalWindow = (index) => {
+    const indices = detailWindowIndices(index);
+    setLoadedOriginalIndices(new Set(indices));
+    indices.forEach((itemIndex) => {
+      preloadImage(PHOTOGRAPHY_ARCHIVE[itemIndex], itemIndex === index ? "high" : "auto");
+    });
+  };
   const selectDetailImage = (index, push = false) => {
     selectedImageRef.current = index;
     setSelectedImage(index);
@@ -119,6 +206,7 @@ export default function PhotographyPage({ onClose }) {
   };
   useEffect(() => {
     selectedImageRef.current = selectedImage;
+    if (selectedImage !== null) ensureOriginalWindow(selectedImage);
   }, [selectedImage]);
   useEffect(() => {
     const syncSelectedImage = () => {
@@ -134,7 +222,7 @@ export default function PhotographyPage({ onClose }) {
     };
   }, []);
   const images = useMemo(
-    () => Array.from({ length: cycleCount }, () => PHOTOGRAPHY_ARCHIVE).flat(),
+    () => Array.from({ length: cycleCount }, () => PHOTOGRAPHY_COVERS).flat(),
     [cycleCount],
   );
   const step = mobile
@@ -144,6 +232,8 @@ export default function PhotographyPage({ onClose }) {
       : { x: 240, y: -84, z: -288 };
 
   useLayoutEffect(() => {
+    if (!active) return undefined;
+
     const stage = stageRef.current;
     const track = trackRef.current;
     if (!stage || !track) return undefined;
@@ -155,24 +245,27 @@ export default function PhotographyPage({ onClose }) {
     const maxProgress = mobile ? cycleLength - 1 : Number.POSITIVE_INFINITY;
     const unlockProgress = initialProgress + 3;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    let backwardScrollLocked = !mobile && !reducedMotion;
+    const resumeMotion = motionInitializedRef.current;
+    let backwardScrollLocked = !mobile && !reducedMotion && !initialGateUnlockedRef.current;
     if (backwardScrollLocked) stage.classList.add("is-initial-lock");
     // Rebase the desktop duplicate cycle before its tail/head becomes visible.
     const forwardBoundary = cycleLength * cycleCount - 5;
     const backwardBoundary = 5;
-    const dragScale = mobile ? 0.0028 : 0.0032;
-    const scrollPerItem = mobile ? 430 : viewportWidth < 1200 ? 500 : 600;
+    const dragScale = mobile ? 0.005 : 0.0032;
+    const scrollPerItem = mobile ? 360 : viewportWidth < 1200 ? 500 : 600;
     const maxPointerDelta = 32;
     const setTrackTransform = (x, y, z) => {
       track.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
     };
     // The reference page enters by returning one full perspective cycle to
     // zero, using the same frame-smoothed track motion as normal scrolling.
-    const entryOffset = {
-      x: -cycleLength * step.x,
-      y: -cycleLength * step.y,
-      z: -cycleLength * step.z,
-    };
+    const entryOffset = resumeMotion
+      ? { x: 0, y: 0, z: 0 }
+      : {
+          x: -cycleLength * step.x,
+          y: -cycleLength * step.y,
+          z: -cycleLength * step.z,
+        };
     const cards = [...track.querySelectorAll(".photography-page__card")];
     const deferredCards = cards.filter((card, index) => index % cycleLength >= 9);
     const finalCardPosition = (index) => ({
@@ -180,12 +273,15 @@ export default function PhotographyPage({ onClose }) {
       "--card-y": `${index * step.y}px`,
       "--card-z": `${index * step.z}px`,
     });
-    let entryActive = !reducedMotion;
+    let entryActive = !reducedMotion && !resumeMotion;
 
     const revealDeferredCards = () => {
+      if (deferredCardsRevealedRef.current) return;
+      deferredCardsRevealedRef.current = true;
+      setDeferredCoversEnabled(true);
       deferredCards.forEach((card) => card.classList.remove("is-entry-deferred"));
     };
-    if (reducedMotion) revealDeferredCards();
+    if (reducedMotion || deferredCardsRevealedRef.current) revealDeferredCards();
 
     const setCardPosition = (card, index) => {
       Object.entries(finalCardPosition(index)).forEach(([property, value]) => card.style.setProperty(property, value));
@@ -193,6 +289,7 @@ export default function PhotographyPage({ onClose }) {
     cards.forEach(setCardPosition);
 
     const releaseInitialLock = () => {
+      initialGateUnlockedRef.current = true;
       if (!backwardScrollLocked) return;
       backwardScrollLocked = false;
       stage.classList.remove("is-initial-lock");
@@ -211,11 +308,13 @@ export default function PhotographyPage({ onClose }) {
     };
 
     const constrainInitialScroll = () => {
-      if (!backwardScrollLocked) return;
       if (state.target >= unlockProgress) {
-        releaseInitialLock();
-        return;
+        revealDeferredCards();
       }
+      if (!mobile && state.target >= unlockProgress) {
+        releaseInitialLock();
+      }
+      if (!backwardScrollLocked) return;
       state.target = Math.max(initialProgress, state.target);
     };
 
@@ -230,8 +329,10 @@ export default function PhotographyPage({ onClose }) {
       lastTime = now;
       constrainInitialScroll();
       constrainTarget();
-      // Match the reference collection's smooth scroll tracking (0.12 per frame).
-      const frameEase = 1 - Math.pow(0.88, deltaRatio);
+      // Mobile follows touch input a little faster while desktop keeps the
+      // reference collection's 0.12-per-frame tracking.
+      const frameFollow = mobile ? 0.2 : 0.12;
+      const frameEase = 1 - Math.pow(1 - frameFollow, deltaRatio);
       const entryEase = 1 - Math.pow(0.92, deltaRatio);
       state.current += (state.target - state.current) * frameEase;
       if (entryActive) {
@@ -270,7 +371,6 @@ export default function PhotographyPage({ onClose }) {
       event.preventDefault();
       event.stopPropagation();
       finishEntry();
-      revealDeferredCards();
       const wheelScale = 1 / scrollPerItem;
       state.target += event.deltaY * wheelScale + event.deltaX * wheelScale * 0.45;
       constrainInitialScroll();
@@ -280,7 +380,6 @@ export default function PhotographyPage({ onClose }) {
     const onPointerDown = (event) => {
       if (event.button !== 0 || event.target.closest(".photography-page__return")) return;
       finishEntry();
-      revealDeferredCards();
       const card = event.target.closest(".photography-page__card");
       state.down = true;
       state.lastX = event.clientX;
@@ -346,13 +445,17 @@ export default function PhotographyPage({ onClose }) {
       stage.removeEventListener("pointerup", onPointerUp);
       stage.removeEventListener("pointercancel", onPointerCancel);
     };
-  }, [step.x, step.y, step.z]);
+  }, [active, step.x, step.y, step.z]);
 
   useLayoutEffect(() => {
     if (selectedImage === null || !thumbnailRailRef.current) return undefined;
     const rail = thumbnailRailRef.current;
     const detail = rail.closest(".photography-page__detail");
     const thumbnails = [...rail.querySelectorAll(".photography-page__thumbnail")];
+    const thumbnailCenters = new Map(thumbnails.map((thumbnail) => [
+      thumbnail,
+      thumbnail.offsetTop + thumbnail.offsetHeight / 2,
+    ]));
     const offsets = new Map();
     const interaction = { down: false, lastY: 0, distance: 0, pressedIndex: null, velocity: 0 };
     const scroll = { current: 0, target: 0, pendingIndex: null };
@@ -361,7 +464,7 @@ export default function PhotographyPage({ onClose }) {
     let wheelTimer = 0;
 
     const centeredScrollTop = (thumbnail) => (
-      thumbnail.offsetTop + thumbnail.offsetHeight / 2 - rail.clientHeight / 2
+      thumbnailCenters.get(thumbnail) - rail.clientHeight / 2
     );
     const clampScroll = (value) => Math.max(0, Math.min(rail.scrollHeight - rail.clientHeight, value));
     const nearestThumbnail = (position = scroll.target) => (
@@ -380,21 +483,21 @@ export default function PhotographyPage({ onClose }) {
     const updateThumbnailCurve = () => {
       const deltaRatio = Math.min(2, Math.max(0.25, (performance.now() - lastFrameTime) / (1000 / 60)));
       lastFrameTime = performance.now();
-      const scrollFollow = scroll.pendingIndex === null ? 0.03 : 0.12;
+      const scrollFollow = scroll.pendingIndex === null
+        ? (mobile ? 0.08 : 0.03)
+        : (mobile ? 0.18 : 0.12);
       const scrollEase = 1 - Math.pow(1 - scrollFollow, deltaRatio);
       const curveEase = 1 - Math.pow(0.92, deltaRatio);
       scroll.current += (scroll.target - scroll.current) * scrollEase;
       if (Math.abs(scroll.target - scroll.current) < 0.02) scroll.current = scroll.target;
       rail.scrollTop = scroll.current;
 
-      const railRect = rail.getBoundingClientRect();
-      const center = railRect.top + railRect.height / 2;
+      const center = scroll.current + rail.clientHeight / 2;
       const radius = window.innerWidth <= 809 ? 220 : 280;
       const maximumOffset = window.innerWidth <= 809 ? 24 : 64;
 
       thumbnails.forEach((thumbnail) => {
-        const rect = thumbnail.getBoundingClientRect();
-        const distance = Math.abs(rect.top + rect.height / 2 - center);
+        const distance = Math.abs(thumbnailCenters.get(thumbnail) - center);
         const proximity = distance < radius ? 1 - distance / radius : 0;
         const targetOffset = proximity * proximity * maximumOffset;
         const currentOffset = offsets.get(thumbnail) ?? 0;
@@ -461,7 +564,7 @@ export default function PhotographyPage({ onClose }) {
       if (!wasDrag && allowSelection && pressedIndex !== null) {
         settleOnThumbnail(thumbnails[pressedIndex]);
       } else {
-        scroll.target = clampScroll(scroll.target - interaction.velocity * 2.4);
+        scroll.target = clampScroll(scroll.target - interaction.velocity * (mobile ? 3.2 : 2.4));
         settleNearest();
       }
     };
@@ -490,34 +593,62 @@ export default function PhotographyPage({ onClose }) {
   }, [selectedImage === null]);
 
   return (
-    <section className={`photography-page${isEntering ? " is-entering" : ""}`} aria-label="摄影作品">
+    <section
+      className={`photography-page${isEntering ? " is-entering" : ""}${active ? " is-active" : " is-hidden"}`}
+      aria-label="摄影作品"
+      aria-hidden={!active}
+    >
       <div ref={stageRef} className="photography-page__stage">
         <header className="photography-page__heading">
           <h1><span className="photography-reveal-line">2025-2026</span><br /><span className="photography-reveal-line">人像摄影集</span></h1>
           <p>({PHOTOGRAPHY_ARCHIVE.length})</p>
         </header>
         <div ref={trackRef} className="photography-page__track">
-            {images.map((src, index) => (
+            {images.map((src, index) => {
+              const photoIndex = index % PHOTOGRAPHY_ARCHIVE.length;
+              const sourceEnabled = photoIndex < 9 || deferredCoversEnabled;
+              return (
               <button
-              className={`photography-page__card${index < initialProgress ? " is-prestart" : ""}${index % PHOTOGRAPHY_ARCHIVE.length >= 9 ? " is-entry-deferred" : ""}`}
+              className={`photography-page__card${index < initialProgress ? " is-prestart" : ""}${!sourceEnabled ? " is-entry-deferred" : ""}`}
               type="button"
               key={`${src}-${index}`}
-              aria-label={`Preview YanQi personal IP study ${index % PHOTOGRAPHY_ARCHIVE.length + 1}`}
-                data-photo-index={index % PHOTOGRAPHY_ARCHIVE.length}
+              aria-label={`查看摄影作品 ${photoIndex + 1}`}
+                data-photo-index={photoIndex}
                 style={{
                   "--card-x": `${index * step.x}px`,
                   "--card-y": `${index * step.y}px`,
                   "--card-z": `${index * step.z}px`,
                 }}
                 onClick={(event) => {
-                  if (event.detail === 0) selectDetailImage(index % PHOTOGRAPHY_ARCHIVE.length, true);
+                  if (event.detail === 0) selectDetailImage(photoIndex, true);
                 }}
               >
               <span className="photography-page__visual">
-                <img src={src} alt={`摄影作品 ${index % PHOTOGRAPHY_ARCHIVE.length + 1}`} loading="lazy" decoding="async" draggable="false" />
+                {sourceEnabled && (
+                  <img
+                    className="photography-page__card-lqip"
+                    src={PHOTOGRAPHY_THUMBNAILS[photoIndex]}
+                    alt=""
+                    loading={photoIndex < 9 ? "eager" : "lazy"}
+                    decoding="async"
+                    aria-hidden="true"
+                    draggable="false"
+                  />
+                )}
+                <img
+                  className="photography-page__card-image"
+                  src={sourceEnabled ? src : undefined}
+                  alt={`摄影作品 ${photoIndex + 1}`}
+                  loading={photoIndex < 9 ? "eager" : "lazy"}
+                  decoding="async"
+                  fetchPriority={photoIndex < 9 ? "high" : "auto"}
+                  draggable="false"
+                  onLoad={(event) => event.currentTarget.classList.add("is-loaded")}
+                />
               </span>
             </button>
-          ))}
+              );
+            })}
         </div>
       </div>
       <p className="photography-page__hint">{mobile ? "滑动浏览" : "滚动浏览"}</p>
@@ -536,7 +667,9 @@ export default function PhotographyPage({ onClose }) {
             className="photography-page__thumbnails"
             aria-label="摄影作品缩略图"
           >
-            {PHOTOGRAPHY_ARCHIVE.map((src, index) => (
+            {PHOTOGRAPHY_THUMBNAILS.map((src, index) => {
+              const [width, height] = PHOTOGRAPHY_DIMENSIONS[index];
+              return (
               <button
                 className="photography-page__thumbnail"
                 type="button"
@@ -553,9 +686,19 @@ export default function PhotographyPage({ onClose }) {
                   }
                 }}
               >
-                <img src={src} alt="" loading="lazy" decoding="async" draggable="false" />
+                <img
+                  src={src}
+                  alt=""
+                  width={240}
+                  height={Math.round(height * 240 / width)}
+                  loading="eager"
+                  decoding="async"
+                  draggable="false"
+                  onLoad={(event) => event.currentTarget.classList.add("is-loaded")}
+                />
               </button>
-            ))}
+              );
+            })}
           </aside>
           <figure className="photography-page__detail-figure">
             {PHOTOGRAPHY_ARCHIVE.map((src, index) => (
@@ -564,13 +707,30 @@ export default function PhotographyPage({ onClose }) {
                 key={`${src}-focus-${index}`}
                 aria-hidden={selectedImage !== index}
               >
-                <img
-                  className="photography-page__detail-image"
-                  src={src}
-                  alt={selectedImage === index ? `摄影作品 ${index + 1}` : ""}
-                  decoding="async"
-                  draggable="false"
-                />
+                <span className="photography-page__focus-media">
+                  <img
+                    className="photography-page__detail-lqip"
+                    src={selectedImage === index ? PHOTOGRAPHY_THUMBNAILS[index] : undefined}
+                    alt=""
+                    width={PHOTOGRAPHY_DIMENSIONS[index][0]}
+                    height={PHOTOGRAPHY_DIMENSIONS[index][1]}
+                    aria-hidden="true"
+                    decoding="async"
+                    draggable="false"
+                  />
+                  <img
+                    className="photography-page__detail-image"
+                    src={loadedOriginalIndices.has(index) ? src : undefined}
+                    alt={selectedImage === index ? `摄影作品 ${index + 1}` : ""}
+                    width={PHOTOGRAPHY_DIMENSIONS[index][0]}
+                    height={PHOTOGRAPHY_DIMENSIONS[index][1]}
+                    loading={Math.abs(selectedImage - index) <= 1 ? "eager" : "lazy"}
+                    decoding="async"
+                    fetchPriority={selectedImage === index ? "high" : "auto"}
+                    draggable="false"
+                    onLoad={(event) => event.currentTarget.classList.add("is-loaded")}
+                  />
+                </span>
               </div>
             ))}
           </figure>

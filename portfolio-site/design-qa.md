@@ -82,7 +82,7 @@ Focused-region comparison was not required because the requested target is the f
 ### Iteration 5
 
 - [P2] The first responsive pass scaled most interface text and the poster base continuously with viewport width, which diverged from the reference site's fixed desktop scale.
-- Fix: measured the current Teonak desktop source rules and locked regular interface copy to `13px`, auxiliary copy to `12px` when needed, content columns to `220px`, thumbnail rail width to `60px`, and poster sequence spacing to `20px`. Only the upper-left brand remains responsive (`44–56px`).
+- Fix: measured the current 参考网站 A desktop source rules and locked regular interface copy to `13px`, auxiliary copy to `12px` when needed, content columns to `220px`, thumbnail rail width to `60px`, and poster sequence spacing to `20px`. Only the upper-left brand remains responsive (`44–56px`).
 - [P2] A `200px` WebGL base plane rendered about 1.35× larger in the foreground because of camera perspective.
 - Fix: reduced the internal plane base to `148px`, producing an approximately `200px` visible foreground poster cap at both tested desktop sizes while preserving the 16:9 ratio.
 - Post-fix verification: `1280 × 720` and `1920 × 1080` both report `13px` for the intro, navigation, project index, details, number, and grid toggle; the thumbnail rail remains `60px`; the foreground poster no longer grows on the larger viewport; browser logs remain clean.
@@ -128,7 +128,7 @@ Focused-region comparison was not required because the requested target is the f
 
 ### Iteration 12
 
-- [P2] Slash-bearing controls changed glyphs without the masked text motion of the Teonak reference, and the project action plus lower-left prompt omitted the approved spaces.
+- [P2] Slash-bearing controls changed glyphs without the masked text motion of the 参考网站 A reference, and the project action plus lower-left prompt omitted the approved spaces.
 - Fix: introduced one shared slash-label treatment for the three upper-right links, project action, and lower-left prompt. Each control now displays `/ 文案` at rest and rolls vertically to `\ 文案` on hover or keyboard focus with the same GPU-composited easing; reduced-motion preferences collapse the transition.
 - Post-fix verification: the production build and Sites worker tests pass, all five slash-bearing controls use the shared component, and the default text includes the approved spacing.
 
@@ -174,8 +174,8 @@ The reference site's background grid, logo, menu, and sound control were intenti
 
 ## Strict secondary project page QA — 2026-08-19
 
-- Source visual truth, desktop: `/Users/a11/Documents/ChatGPT/作品集 2/reference-evidence/strict-spoony-detail-desktop-1280x720.png`
-- Source visual truth, mobile: `/Users/a11/Documents/ChatGPT/作品集 2/reference-evidence/spoony-project-detail-mobile-390x844.png`
+- Source visual truth, desktop: `参考网站 B desktop evidence`
+- Source visual truth, mobile: `参考网站 B mobile evidence`
 - Implementation, desktop: `/Users/a11/Documents/ChatGPT/作品集 2/portfolio-site/implementation-strict-detail-desktop-1280x720.png`
 - Implementation, mobile: `/Users/a11/Documents/ChatGPT/作品集 2/portfolio-site/implementation-strict-detail-mobile-390x844.png`
 - Full desktop comparison: `/Users/a11/Documents/ChatGPT/作品集 2/portfolio-site/qa-strict-detail-desktop-comparison.png`
@@ -254,15 +254,15 @@ No actionable P0, P1, or P2 issues remain within the eight approved desktop chan
 
 None proposed. Further secondary-page changes require explicit user approval.
 
-## Spoony glass-overlay parity — 2026-08-19
+## 参考网站 B glass-overlay parity — 2026-08-19
 
-- Live source, desktop: `/Users/a11/Documents/ChatGPT/作品集 2/reference-evidence/spoony-overlay-background-1280x720.png`
-- Live source, mobile: `/Users/a11/Documents/ChatGPT/作品集 2/reference-evidence/spoony-overlay-background-mobile-390x844.png`
+- Live source, desktop: `参考网站 B desktop overlay evidence`
+- Live source, mobile: `参考网站 B mobile overlay evidence`
 - User CSS evidence: `/var/folders/h3/p4c0wxyn2052zy3rf6ryy5n40000gn/T/codex-clipboard-8ee9bb52-c4c5-44a3-835a-d9c8ee081ff6.png` and `/var/folders/h3/p4c0wxyn2052zy3rf6ryy5n40000gn/T/codex-clipboard-727ee1d1-ea1b-4993-b6dd-cb31a25ee1c6.png`
-- Implementation, desktop: `/Users/a11/Documents/ChatGPT/作品集 2/portfolio-site/implementation-spoony-glass-1280x720.png`
-- Implementation, mobile: `/Users/a11/Documents/ChatGPT/作品集 2/portfolio-site/implementation-spoony-glass-mobile-390x844.png`
-- Full desktop comparison: `/Users/a11/Documents/ChatGPT/作品集 2/portfolio-site/qa-spoony-glass-desktop-comparison.png`
-- Full mobile comparison: `/Users/a11/Documents/ChatGPT/作品集 2/portfolio-site/qa-spoony-glass-mobile-comparison.png`
+- Implementation, desktop: `参考网站 B desktop implementation evidence`
+- Implementation, mobile: `参考网站 B mobile implementation evidence`
+- Full desktop comparison: `参考网站 B desktop comparison evidence`
+- Full mobile comparison: `参考网站 B mobile comparison evidence`
 - Viewports and density: desktop source/implementation `1280 × 720`, mobile source/implementation `390 × 844`, all captured at device density `1` with no scaling.
 - State: first project open over the still-mounted homepage; media and panel scroll positions at the top; no hover or keyboard-focus state.
 
@@ -272,20 +272,20 @@ No actionable P0, P1, or P2 issue remains in the requested background, frosted-g
 
 - Fonts and typography: untouched in this pass; the prior approved local Chinese typography remains stable.
 - Spacing and layout rhythm: untouched. The approved `200px + 460px + remainder` desktop tracks and existing mobile sheet geometry are preserved.
-- Colors and visual tokens: live Spoony and the local panel now compute identically: `--bg-light: #0c0c0c`, `background: color-mix(in oklch, var(--bg-light) 96%, transparent)`, resolved `oklch(0.154339 0.00000767918 none / 0.96)`, and `backdrop-filter: blur(10px)`. Both use `--line-light: rgba(255,255,255,0.09)` for the `1px` right and internal rules.
+- Colors and visual tokens: live 参考网站 B and the local panel now compute identically: `--bg-light: #0c0c0c`, `background: color-mix(in oklch, var(--bg-light) 96%, transparent)`, resolved `oklch(0.154339 0.00000767918 none / 0.96)`, and `backdrop-filter: blur(10px)`. Both use `--line-light: rgba(255,255,255,0.09)` for the `1px` right and internal rules.
 - Image quality and asset fidelity: no media was changed or generated; the user's local project cover remains native and un-stretched.
 - Copy and content: no title, description, highlight, route, control, region, or media asset was added, removed, or rewritten.
-- Overlay behavior: `.project-page` computes to a transparent fixed layer; the homepage remains mounted behind it. Only the detail panel owns Spoony's 96%-opaque frosted surface, matching the live source instead of replacing the whole viewport with an opaque new page.
-- Responsive evidence: the `390 × 844` implementation panel resolves to the same 96% `#0c0c0c` color mix and `blur(10px)` as Spoony's live mobile sheet.
+- Overlay behavior: `.project-page` computes to a transparent fixed layer; the homepage remains mounted behind it. Only the detail panel owns 参考网站 B's 96%-opaque frosted surface, matching the live source instead of replacing the whole viewport with an opaque new page.
+- Responsive evidence: the `390 × 844` implementation panel resolves to the same 96% `#0c0c0c` color mix and `blur(10px)` as 参考网站 B's live mobile sheet.
 - Interaction verification: closing removes the detail layer and returns to the existing homepage with all eight project entries; clicking the homepage project name reopens the same overlay and hash route.
 - Browser console warnings and errors checked: none.
 
 ### Comparison history
 
-- [P1] The previous `.project-page` used an opaque `#0c0c0c` full-viewport background, while the panel's child columns used opaque black, so the detail state visually replaced the homepage and could not reproduce Spoony's glass surface.
+- [P1] The previous `.project-page` used an opaque `#0c0c0c` full-viewport background, while the panel's child columns used opaque black, so the detail state visually replaced the homepage and could not reproduce 参考网站 B's glass surface.
 - [P2] Previous dividers used `#252525`, while the live source and the supplied inspector evidence use `var(--line-light)`, resolved to `rgba(255,255,255,0.09)`.
 - Fix: made the full detail layer transparent; moved the exact source `color-mix(...)` plus `blur(10px)` to the panel; made panel children transparent; and routed every panel rule through the exact live `--line-light` value.
-- Post-fix evidence: both combined comparisons were inspected together, and browser-computed styles match the live Spoony values property-for-property. The remaining content and width differences are explicit prior user constraints, not drift in this background-only pass.
+- Post-fix evidence: both combined comparisons were inspected together, and browser-computed styles match the live 参考网站 B values property-for-property. The remaining content and width differences are explicit prior user constraints, not drift in this background-only pass.
 
 ### Follow-up polish
 

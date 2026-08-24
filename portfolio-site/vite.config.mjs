@@ -7,6 +7,16 @@ export default defineConfig({
   base: "./",
   build: {
     outDir: "dist/client",
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/react") || id.includes("node_modules/react-dom")) return "react-vendor";
+          if (id.includes("node_modules/gsap")) return "gsap-vendor";
+          if (id.includes("node_modules/ogl")) return "ogl-vendor";
+          return undefined;
+        },
+      },
+    },
   },
   optimizeDeps: {
     include: ["react", "react-dom/client"],
