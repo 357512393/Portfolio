@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import FlyingPosters from "./FlyingPosters";
 import AboutPage from "./AboutPage.jsx";
-import PhotographyPage, { preloadPhotographyEntry } from "./PhotographyPage.jsx";
+import PhotographyPage from "./PhotographyPage.jsx";
 import SlashHoverLabel from "./SlashHoverLabel";
 import Preloader from "./Preloader";
 import { assetUrl } from "./assetUrl";
@@ -267,11 +267,8 @@ export function App() {
     window.history.pushState({}, "", "#about-me");
   };
 
-  const openPhotography = async (event) => {
+  const openPhotography = (event) => {
     event?.preventDefault();
-    const entryHash = window.location.hash;
-    await preloadPhotographyEntry();
-    if (window.location.hash !== entryHash) return;
     setAboutOpen(false);
     setDetailIndex(-1);
     setPhotographyMounted(true);
