@@ -10,6 +10,16 @@
   --rail-width: 60px;
   --rail-height: 34px;
   --rail-gap: 8px;
+  --page-grid-background:
+    linear-gradient(90deg, transparent calc(24% - .5px), rgb(255 255 255 / 4%) 24%, transparent calc(24% + .5px)),
+    linear-gradient(90deg, transparent calc(49.5% - .5px), rgb(255 255 255 / 4%) 49.5%, transparent calc(49.5% + .5px)),
+    linear-gradient(90deg, transparent calc(74.5% - .5px), rgb(255 255 255 / 4%) 74.5%, transparent calc(74.5% + .5px)),
+    linear-gradient(0deg, transparent calc(33% - .5px), rgb(255 255 255 / 3%) 33%, transparent calc(33% + .5px));
+  --content-grid-background:
+    linear-gradient(90deg, transparent calc(24% - .5px), rgb(255 255 255 / 2%) 24%, transparent calc(24% + .5px)),
+    linear-gradient(90deg, transparent calc(49.5% - .5px), rgb(255 255 255 / 2%) 49.5%, transparent calc(49.5% + .5px)),
+    linear-gradient(90deg, transparent calc(74.5% - .5px), rgb(255 255 255 / 2%) 74.5%, transparent calc(74.5% + .5px)),
+    linear-gradient(0deg, transparent calc(33% - .5px), rgb(255 255 255 / 2%) 33%, transparent calc(33% + .5px));
 }
 
 * {
@@ -64,7 +74,8 @@ button:focus-visible {
   z-index: 100;
   inset: 0;
   overflow: hidden;
-  background: #000;
+  background-color: #000;
+  background-image: var(--content-grid-background);
   color: #f2f1ec;
   pointer-events: auto;
   opacity: 1;
@@ -153,7 +164,8 @@ button:focus-visible {
   position: absolute;
   z-index: 1;
   inset: 0;
-  background: #000;
+  background-color: #000;
+  background-image: var(--content-grid-background);
   transform: translate3d(0, 0, 0);
   transition: transform 900ms cubic-bezier(0.77, 0, 0.175, 1);
 }
@@ -722,11 +734,7 @@ button:focus-visible {
 /* About page hero composition */
 .about-page {
   background-color: #000;
-  background-image:
-    linear-gradient(90deg, transparent calc(24% - .5px), rgb(255 255 255 / 4%) 24%, transparent calc(24% + .5px)),
-    linear-gradient(90deg, transparent calc(49.5% - .5px), rgb(255 255 255 / 4%) 49.5%, transparent calc(49.5% + .5px)),
-    linear-gradient(90deg, transparent calc(74.5% - .5px), rgb(255 255 255 / 4%) 74.5%, transparent calc(74.5% + .5px)),
-    linear-gradient(0deg, transparent calc(33% - .5px), rgb(255 255 255 / 3%) 33%, transparent calc(33% + .5px));
+  background-image: var(--page-grid-background);
 }
 
 .about-page__content.about-blank {
@@ -1160,7 +1168,8 @@ button:focus-visible {
   z-index: 30;
   inset: 0;
   overflow: hidden;
-  background: #000;
+  background-color: #000;
+  background-image: var(--content-grid-background);
   color: #f4f4f2;
   font-family: inherit;
   touch-action: none;
@@ -1323,7 +1332,8 @@ button:focus-visible {
   z-index: 31;
   inset: 0;
   overflow: hidden;
-  background: #000;
+  background-color: #000;
+  background-image: none;
   pointer-events: auto;
   isolation: isolate;
   backface-visibility: hidden;
@@ -1912,6 +1922,11 @@ button:focus-visible {
     --edge-y: 24px;
     --body-size: 13px;
     --body-leading: 18px;
+  }
+
+  .photography-page,
+  .photography-page__detail {
+    background-image: none;
   }
 
   body,

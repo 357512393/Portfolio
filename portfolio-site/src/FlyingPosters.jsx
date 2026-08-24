@@ -66,6 +66,40 @@ void main() {
 }
 `;
 
+const gridVertexShader = `
+precision highp float;
+attribute vec3 position;
+attribute vec2 uv;
+uniform mat4 modelViewMatrix;
+uniform mat4 projectionMatrix;
+varying vec2 vUv;
+void main() {
+  vUv = uv;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
+`;
+
+const gridFragmentShader = `
+precision highp float;
+uniform vec2 uResolution;
+varying vec2 vUv;
+
+float gridLine(float coordinate, float target, float resolution) {
+  float distanceInPixels = abs(coordinate - target) * resolution;
+  return 1.0 - smoothstep(0.0, 0.5, distanceInPixels);
+}
+
+void main() {
+  float vertical = max(
+    max(gridLine(vUv.x, 0.24, uResolution.x), gridLine(vUv.x, 0.495, uResolution.x)),
+    gridLine(vUv.x, 0.745, uResolution.x)
+  );
+  float horizontal = gridLine(vUv.y, 0.33, uResolution.y);
+  float luminance = min(1.0, vertical * 0.01 + horizontal * 0.01);
+  gl_FragColor = vec4(vec3(luminance), 1.0);
+}
+`;
+
 function lerp(from, to, amount) {
   return from + (to - from) * amount;
 }
@@ -299,6 +333,24 @@ class PosterCanvas {
   createScene() {
     this.scene = new Transform();
     this.geometry = new Plane(this.gl, { heightSegments: 8, widthSegments: 32 });
+    this.backgroundGeometry = new Plane(this.gl);
+    this.backgroundProgram = new Program(this.gl, {
+      depthTest: true,
+      depthWrite: false,
+      fragment: gridFragmentShader,
+      vertex: gridVertexShader,
+      uniforms: {
+        uResolution: { value: [1, 1] },
+      },
+      cullFace: false,
+    });
+    this.backgroundGrid = new Mesh(this.gl, {
+      geometry: this.backgroundGeometry,
+      program: this.backgroundProgram,
+    });
+    this.backgroundGrid.position.z = -10;
+    this.backgroundGrid.renderOrder = -100;
+    this.backgroundGrid.setParent(this.scene);
   }
 
   createMedias() {
@@ -327,6 +379,16 @@ class PosterCanvas {
     const fov = (this.camera.fov * Math.PI) / 180;
     const height = 2 * Math.tan(fov / 2) * this.camera.position.z;
     this.viewport = { height, width: height * this.camera.aspect };
+    const backgroundDistanceScale = (
+      this.camera.position.z - this.backgroundGrid.position.z
+    ) / this.camera.position.z;
+    this.backgroundGrid.scale.set(
+      this.viewport.width * backgroundDistanceScale,
+      this.viewport.height * backgroundDistanceScale,
+      1,
+    );
+    this.backgroundGrid.program.uniforms.uResolution.value = [this.screen.width, this.screen.height];
+    this.backgroundGrid.visible = this.screen.width > MOBILE_BREAKPOINT;
     this.canTilt = window.matchMedia?.("(hover: hover) and (pointer: fine)").matches ?? false;
     this.medias?.forEach((media) => media.onResize({ screen: this.screen, viewport: this.viewport }));
   }
