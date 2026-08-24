@@ -1,0 +1,65 @@
+name: Deploy portfolio to Alibaba Cloud OSS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: oss-production
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Enable pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.19.0 --activate
+
+      - name: Install dependencies
+        run: pnpm install --dir portfolio-site --frozen-lockfile --prefer-offline
+
+      - name: Build site
+        run: pnpm --dir portfolio-site build
+
+      - name: Install official ossutil
+        run: |
+          curl -fsSL https://gosspublic.alicdn.com/ossutil/install.sh \
+            -o /tmp/install-ossutil.sh
+          sudo bash /tmp/install-ossutil.sh
+
+      - name: Configure ossutil
+        env:
+          OSS_ENDPOINT: ${{ secrets.OSS_ENDPOINT }}
+          OSS_ACCESS_KEY_ID: ${{ secrets.OSS_ACCESS_KEY_ID }}
+          OSS_ACCESS_KEY_SECRET: ${{ secrets.OSS_ACCESS_KEY_SECRET }}
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+        run: |
+          test -n "$OSS_ENDPOINT"
+          test -n "$OSS_ACCESS_KEY_ID"
+          test -n "$OSS_ACCESS_KEY_SECRET"
+          test -n "$OSS_BUCKET"
+          ossutil config \
+            -e "$OSS_ENDPOINT" \
+            -i "$OSS_ACCESS_KEY_ID" \
+            -k "$OSS_ACCESS_KEY_SECRET" \
+            -L CH
+
+      - name: Sync static site to OSS
+        env:
+          OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
+        run: ossutil sync portfolio-site/dist/client/ "oss://$OSS_BUCKET/"
