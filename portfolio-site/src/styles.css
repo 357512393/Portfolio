@@ -57,9 +57,158 @@ button:focus-visible {
   line-height: 1.4;
 }
 
+/* Reference preloader motion: the full-screen cover waits for real image
+   decoding, then slides away to reveal the page underneath. */
+.preloader {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+  color: #f2f1ec;
+  pointer-events: auto;
+  opacity: 1;
+  transition: opacity 180ms ease 120ms;
+}
+
+.preloader.is-handoff {
+  pointer-events: none;
+  background: transparent;
+}
+
+.preloader.is-hidden {
+  display: none;
+}
+
+.preloader__intro {
+  position: absolute;
+  z-index: 3;
+  inset: 0;
+  overflow: hidden;
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%);
+  transition: clip-path 760ms cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.preloader__name {
+  position: absolute;
+  bottom: 4.5%;
+  left: var(--edge-x);
+  display: flex;
+  flex-direction: column;
+  color: #f2f1ec;
+  font-family: "Geist", "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(118px, 12.3vw, 218px);
+  font-weight: 800;
+  letter-spacing: -0.105em;
+  line-height: 0.72;
+  text-transform: none;
+  transition:
+    bottom 900ms linear,
+    font-size 900ms linear,
+    line-height 900ms linear,
+    letter-spacing 900ms linear;
+}
+
+.preloader.is-moving .preloader__name {
+  bottom: calc(100vh - var(--edge-y) - 2em);
+  font-size: 16px;
+  line-height: 1;
+  letter-spacing: -0.055em;
+}
+
+.preloader__line {
+  display: block;
+  overflow: hidden;
+  width: max-content;
+  height: 0.72em;
+  padding-inline-end: 0.16em;
+  line-height: 0.72;
+}
+
+.preloader__line > span {
+  display: block;
+  transform: translate3d(0, calc(100% + 24px), 0);
+  opacity: 0;
+  transition: transform 1100ms cubic-bezier(0.22, 1, 0.36, 1), opacity 260ms ease;
+}
+
+.preloader__line + .preloader__line > span { transition-delay: 150ms; }
+
+.preloader.is-entering .preloader__line > span {
+  transform: translate3d(0, 0, 0);
+  opacity: 1;
+}
+
+.preloader__cover {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  background: #000;
+  transform: translate3d(0, 0, 0);
+  transition: transform 900ms cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+.preloader.is-moving .preloader__cover {
+  transform: translate3d(101%, 0, 0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preloader,
+  .preloader__intro,
+  .preloader__name,
+  .preloader__line > span,
+  .preloader__cover { transition-duration: 1ms; transition-delay: 0ms; }
+}
+
+@media (max-width: 809px) {
+  .preloader__name {
+    bottom: 5%;
+    left: var(--edge-x);
+    font-size: clamp(84px, 23vw, 180px);
+  }
+}
+
 .site-header {
   position: relative;
   z-index: 5;
+}
+
+/* Homepage copy fades in on the same beat as the first WebGL spiral. */
+.portfolio-shell:not(.is-home-ready) > .site-header > .intro-block,
+.portfolio-shell:not(.is-home-ready) > .site-header > .site-nav,
+.portfolio-shell:not(.is-home-ready) > .project-index,
+.portfolio-shell:not(.is-home-ready) > .project-type,
+.portfolio-shell:not(.is-home-ready) > .project-detail,
+.portfolio-shell:not(.is-home-ready) > .project-number,
+.portfolio-shell:not(.is-home-ready) > .thumbnail-rail,
+.portfolio-shell:not(.is-home-ready) > .grid-toggle {
+  opacity: 0;
+  transition: opacity 1350ms ease;
+}
+
+.portfolio-shell.is-home-ready > .site-header > .intro-block,
+.portfolio-shell.is-home-ready > .site-header > .site-nav,
+.portfolio-shell.is-home-ready > .project-index,
+.portfolio-shell.is-home-ready > .project-type,
+.portfolio-shell.is-home-ready > .project-detail,
+.portfolio-shell.is-home-ready > .project-number,
+.portfolio-shell.is-home-ready > .thumbnail-rail,
+.portfolio-shell.is-home-ready > .grid-toggle {
+  opacity: 1;
+  transition: opacity 1350ms ease;
+}
+
+/* A deep link opens directly on its own page; do not flash the homepage
+   canvas, index, or supporting copy underneath that page. */
+.portfolio-shell.is-non-home-entry > .gallery-stage,
+.portfolio-shell.is-non-home-entry > .project-index,
+.portfolio-shell.is-non-home-entry > .project-type,
+.portfolio-shell.is-non-home-entry > .project-detail,
+.portfolio-shell.is-non-home-entry > .project-number,
+.portfolio-shell.is-non-home-entry > .thumbnail-rail,
+.portfolio-shell.is-non-home-entry > .grid-toggle,
+.portfolio-shell.is-non-home-entry > .site-header > .intro-block {
+  display: none;
 }
 
 .site-header.is-photography-open {
@@ -357,6 +506,109 @@ button:focus-visible {
   color: #f4f4f2;
 }
 
+/* About-page text reveal: glyphs stay fixed while a bottom mask opens. */
+.about-reveal {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: bottom;
+}
+
+.about-reveal > span {
+  display: inline-block;
+  clip-path: inset(0 0 0 0);
+}
+
+.about-page.is-revealing .about-reveal > span {
+  animation: about-text-reveal 760ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.about-blank__experience-description .about-reveal,
+.about-blank__descriptor .about-reveal { display: block; }
+
+@keyframes about-text-reveal {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+/* Navigation labels use opacity only so the slash-hover translation is never
+   clipped when the second character moves on hover. */
+.about-page__nav .about-reveal {
+  overflow: visible;
+}
+
+.about-page__nav .about-reveal > span {
+  clip-path: none;
+  opacity: 1;
+}
+
+.about-page.is-revealing .about-page__nav .about-reveal > span {
+  animation: about-nav-fade 100ms ease-out forwards;
+}
+
+@keyframes about-nav-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Photography copy fades in with the short image entrance beat. */
+.photography-page.is-entering :is(.photography-page__hint, .photography-page__return, .photography-page__detail-count) {
+  animation: photography-copy-fade 100ms ease-out forwards;
+}
+
+.photography-page.is-entering .photography-page__heading p {
+  animation: photography-copy-fade 100ms ease-out forwards;
+}
+
+.photography-page.is-entering .photography-page__heading h1 .photography-reveal-line {
+  animation: photography-text-reveal 1100ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.photography-page.is-entering .photography-page__heading h1 .photography-reveal-line + br + .photography-reveal-line {
+  animation-delay: 150ms;
+}
+
+.photography-page__heading h1,
+.photography-page__heading p {
+  overflow: hidden;
+}
+
+.photography-reveal-line {
+  display: inline-block;
+  padding-inline-end: 0.12em;
+  clip-path: inset(0 0 0 0);
+}
+
+.photography-page.is-entering .photography-reveal-line {
+  clip-path: inset(100% 0 0 0);
+  animation: photography-text-reveal 1100ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes photography-text-reveal {
+  from { clip-path: inset(100% 0 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes photography-copy-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.photography-page :is(.photography-page__hint, .photography-page__return, .photography-page__detail-count) {
+  transition: opacity 100ms ease;
+}
+
+.photography-page__heading p {
+  transition: opacity 100ms ease;
+}
+
+.portfolio-shell:has(.photography-page.is-entering) > .site-header > .site-nav {
+  animation: photography-copy-fade 100ms ease-out forwards;
+}
+
+.portfolio-shell > .site-header > .site-nav {
+  transition: opacity 100ms ease;
+}
+
 .about-page__header {
   position: absolute;
   z-index: 1;
@@ -560,6 +812,19 @@ button:focus-visible {
 }
 
 .about-blank__name span { display: block; }
+
+/* The heavy Geist glyphs extend beyond their advance width. Keep the reveal
+   mask, but give the final glyph enough room so 6/G are not clipped. */
+.about-blank__name .about-reveal {
+  display: inline-block;
+  width: max-content;
+  overflow: visible;
+}
+
+.about-blank__name .about-reveal > span {
+  width: max-content;
+  padding-inline-end: 0.16em;
+}
 
 .about-blank__contact {
   position: absolute;
@@ -881,9 +1146,10 @@ button:focus-visible {
 
 .photography-page__heading h1 {
   margin: 0;
+  font-family: "Geist", "Helvetica Neue", Arial, sans-serif;
   font-size: clamp(54px, 7vw, 112px);
-  font-weight: 400;
-  letter-spacing: -0.06em;
+  font-weight: 800;
+  letter-spacing: -0.035em;
   line-height: 0.92;
 }
 
@@ -952,6 +1218,11 @@ button:focus-visible {
   transform: translate3d(var(--card-x), var(--card-y), var(--card-z)) rotateY(-50deg);
   transform-style: preserve-3d;
   will-change: transform;
+}
+
+.photography-page__card.is-entry-deferred {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .photography-page__visual {
