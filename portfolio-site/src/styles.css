@@ -581,11 +581,13 @@ button:focus-visible {
 
 /* Photography copy fades in with the short image entrance beat. */
 .photography-page.is-entering :is(.photography-page__hint, .photography-page__return, .photography-page__detail-count) {
-  animation: photography-copy-fade 100ms ease-out forwards;
+  opacity: 0;
+  animation: photography-copy-fade 1350ms ease both;
 }
 
 .photography-page.is-entering .photography-page__heading p {
-  animation: photography-copy-fade 100ms ease-out forwards;
+  opacity: 0;
+  animation: photography-copy-fade 1350ms ease both;
 }
 
 .photography-page.is-entering .photography-page__heading h1 .photography-reveal-line {
@@ -631,7 +633,8 @@ button:focus-visible {
 }
 
 .portfolio-shell:has(.photography-page.is-active.is-entering) > .site-header > .site-nav {
-  animation: photography-copy-fade 100ms ease-out forwards;
+  opacity: 0;
+  animation: photography-copy-fade 1350ms ease both;
 }
 
 .portfolio-shell > .site-header > .site-nav {

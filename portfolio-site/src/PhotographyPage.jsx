@@ -155,11 +155,17 @@ export default function PhotographyPage({ active = true, onClose }) {
   const selectedImageRef = useRef(null);
   const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
   const mobile = viewportWidth <= 809;
-  useEffect(() => {
+  useLayoutEffect(() => {
+    if (!active) {
+      setIsEntering(false);
+      return undefined;
+    }
+
+    setIsEntering(true);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const timer = window.setTimeout(() => setIsEntering(false), reducedMotion ? 1 : 1250);
+    const timer = window.setTimeout(() => setIsEntering(false), reducedMotion ? 1 : 1350);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [active]);
   useEffect(() => {
     preloadPhotographyEntry();
   }, []);
