@@ -1,5 +1,4 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import gsap from "gsap";
 import SlashHoverLabel from "./SlashHoverLabel";
 import { assetUrl } from "./assetUrl";
 
@@ -79,6 +78,7 @@ function selectedImageFromHash() {
 }
 
 export default function PhotographyPage({ onClose }) {
+  const [isEntering, setIsEntering] = useState(true);
   const stageRef = useRef(null);
   const trackRef = useRef(null);
   const thumbnailRailRef = useRef(null);
@@ -86,6 +86,11 @@ export default function PhotographyPage({ onClose }) {
   const selectedImageRef = useRef(null);
   const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
   const mobile = viewportWidth <= 809;
+  useEffect(() => {
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const timer = window.setTimeout(() => setIsEntering(false), reducedMotion ? 1 : 1250);
+    return () => window.clearTimeout(timer);
+  }, []);
   // Mobile is a finite gallery. Desktop keeps one duplicate cycle for
   // seamless looping while avoiding unnecessary image decoding.
   const cycleCount = mobile ? 1 : 2;
@@ -158,9 +163,9 @@ export default function PhotographyPage({ onClose }) {
     const dragScale = mobile ? 0.0028 : 0.0032;
     const scrollPerItem = mobile ? 430 : viewportWidth < 1200 ? 500 : 600;
     const maxPointerDelta = 32;
-    const setX = gsap.quickSetter(track, "x", "px");
-    const setY = gsap.quickSetter(track, "y", "px");
-    const setZ = gsap.quickSetter(track, "z", "px");
+    const setTrackTransform = (x, y, z) => {
+      track.style.transform = `translate3d(${x}px, ${y}px, ${z}px)`;
+    };
     // The reference page enters by returning one full perspective cycle to
     // zero, using the same frame-smoothed track motion as normal scrolling.
     const entryOffset = {
@@ -169,6 +174,7 @@ export default function PhotographyPage({ onClose }) {
       z: -cycleLength * step.z,
     };
     const cards = [...track.querySelectorAll(".photography-page__card")];
+    const deferredCards = cards.filter((card, index) => index % cycleLength >= 9);
     const finalCardPosition = (index) => ({
       "--card-x": `${index * step.x}px`,
       "--card-y": `${index * step.y}px`,
@@ -176,7 +182,15 @@ export default function PhotographyPage({ onClose }) {
     });
     let entryActive = !reducedMotion;
 
-    cards.forEach((card, index) => gsap.set(card, finalCardPosition(index)));
+    const revealDeferredCards = () => {
+      deferredCards.forEach((card) => card.classList.remove("is-entry-deferred"));
+    };
+    if (reducedMotion) revealDeferredCards();
+
+    const setCardPosition = (card, index) => {
+      Object.entries(finalCardPosition(index)).forEach(([property, value]) => card.style.setProperty(property, value));
+    };
+    cards.forEach(setCardPosition);
 
     const releaseInitialLock = () => {
       if (!backwardScrollLocked) return;
@@ -191,7 +205,7 @@ export default function PhotographyPage({ onClose }) {
       entryOffset.y = 0;
       entryOffset.z = 0;
       cards.forEach((card, index) => {
-        gsap.set(card, finalCardPosition(index));
+        setCardPosition(card, index);
         card.style.zIndex = "";
       });
     };
@@ -209,16 +223,21 @@ export default function PhotographyPage({ onClose }) {
       state.target = Math.max(minProgress, Math.min(maxProgress, state.target));
     };
 
-    const update = () => {
+    let animationFrame = 0;
+    let lastTime = performance.now();
+    const update = (now) => {
+      const deltaRatio = Math.min(2, Math.max(0.25, (now - lastTime) / (1000 / 60)));
+      lastTime = now;
       constrainInitialScroll();
       constrainTarget();
       // Match the reference collection's smooth scroll tracking (0.12 per frame).
-      const frameEase = 1 - Math.pow(0.88, gsap.ticker.deltaRatio(60));
+      const frameEase = 1 - Math.pow(0.88, deltaRatio);
+      const entryEase = 1 - Math.pow(0.92, deltaRatio);
       state.current += (state.target - state.current) * frameEase;
       if (entryActive) {
-        entryOffset.x += (0 - entryOffset.x) * frameEase;
-        entryOffset.y += (0 - entryOffset.y) * frameEase;
-        entryOffset.z += (0 - entryOffset.z) * frameEase;
+        entryOffset.x += (0 - entryOffset.x) * entryEase;
+        entryOffset.y += (0 - entryOffset.y) * entryEase;
+        entryOffset.z += (0 - entryOffset.z) * entryEase;
         if (Math.max(Math.abs(entryOffset.x), Math.abs(entryOffset.y), Math.abs(entryOffset.z)) < 0.1) {
           entryActive = false;
           entryOffset.x = 0;
@@ -238,9 +257,12 @@ export default function PhotographyPage({ onClose }) {
         state.target += cycleShift;
       }
 
-      setX(-state.current * step.x + entryOffset.x);
-      setY(-state.current * step.y + entryOffset.y);
-      setZ(-state.current * step.z + entryOffset.z);
+      setTrackTransform(
+        -state.current * step.x + entryOffset.x,
+        -state.current * step.y + entryOffset.y,
+        -state.current * step.z + entryOffset.z,
+      );
+      animationFrame = requestAnimationFrame(update);
 
     };
 
@@ -248,6 +270,7 @@ export default function PhotographyPage({ onClose }) {
       event.preventDefault();
       event.stopPropagation();
       finishEntry();
+      revealDeferredCards();
       const wheelScale = 1 / scrollPerItem;
       state.target += event.deltaY * wheelScale + event.deltaX * wheelScale * 0.45;
       constrainInitialScroll();
@@ -257,6 +280,7 @@ export default function PhotographyPage({ onClose }) {
     const onPointerDown = (event) => {
       if (event.button !== 0 || event.target.closest(".photography-page__return")) return;
       finishEntry();
+      revealDeferredCards();
       const card = event.target.closest(".photography-page__card");
       state.down = true;
       state.lastX = event.clientX;
@@ -301,10 +325,12 @@ export default function PhotographyPage({ onClose }) {
 
     // Apply the entry position before the first paint so the normal track
     // position never flashes before the reference-style motion begins.
-    setX(-state.current * step.x + entryOffset.x);
-    setY(-state.current * step.y + entryOffset.y);
-    setZ(-state.current * step.z + entryOffset.z);
-    gsap.ticker.add(update);
+    setTrackTransform(
+      -state.current * step.x + entryOffset.x,
+      -state.current * step.y + entryOffset.y,
+      -state.current * step.z + entryOffset.z,
+    );
+    animationFrame = requestAnimationFrame(update);
     stage.addEventListener("wheel", onWheel, { passive: false });
     stage.addEventListener("pointerdown", onPointerDown);
     stage.addEventListener("pointermove", onPointerMove);
@@ -313,7 +339,7 @@ export default function PhotographyPage({ onClose }) {
 
     return () => {
       stage.classList.remove("is-initial-lock");
-      gsap.ticker.remove(update);
+      cancelAnimationFrame(animationFrame);
       stage.removeEventListener("wheel", onWheel);
       stage.removeEventListener("pointerdown", onPointerDown);
       stage.removeEventListener("pointermove", onPointerMove);
@@ -331,6 +357,7 @@ export default function PhotographyPage({ onClose }) {
     const interaction = { down: false, lastY: 0, distance: 0, pressedIndex: null, velocity: 0 };
     const scroll = { current: 0, target: 0, pendingIndex: null };
     let frame = 0;
+    let lastFrameTime = performance.now();
     let wheelTimer = 0;
 
     const centeredScrollTop = (thumbnail) => (
@@ -351,7 +378,8 @@ export default function PhotographyPage({ onClose }) {
     const settleNearest = () => settleOnThumbnail(nearestThumbnail(scroll.target));
 
     const updateThumbnailCurve = () => {
-      const deltaRatio = gsap.ticker.deltaRatio(60);
+      const deltaRatio = Math.min(2, Math.max(0.25, (performance.now() - lastFrameTime) / (1000 / 60)));
+      lastFrameTime = performance.now();
       const scrollFollow = scroll.pendingIndex === null ? 0.03 : 0.12;
       const scrollEase = 1 - Math.pow(1 - scrollFollow, deltaRatio);
       const curveEase = 1 - Math.pow(0.92, deltaRatio);
@@ -462,16 +490,16 @@ export default function PhotographyPage({ onClose }) {
   }, [selectedImage === null]);
 
   return (
-    <section className="photography-page" aria-label="摄影作品">
+    <section className={`photography-page${isEntering ? " is-entering" : ""}`} aria-label="摄影作品">
       <div ref={stageRef} className="photography-page__stage">
         <header className="photography-page__heading">
-          <h1>2025-2026<br />人像摄影集</h1>
+          <h1><span className="photography-reveal-line">2025-2026</span><br /><span className="photography-reveal-line">人像摄影集</span></h1>
           <p>({PHOTOGRAPHY_ARCHIVE.length})</p>
         </header>
         <div ref={trackRef} className="photography-page__track">
             {images.map((src, index) => (
               <button
-              className={`photography-page__card${index < initialProgress ? " is-prestart" : ""}`}
+              className={`photography-page__card${index < initialProgress ? " is-prestart" : ""}${index % PHOTOGRAPHY_ARCHIVE.length >= 9 ? " is-entry-deferred" : ""}`}
               type="button"
               key={`${src}-${index}`}
               aria-label={`Preview YanQi personal IP study ${index % PHOTOGRAPHY_ARCHIVE.length + 1}`}
@@ -486,7 +514,7 @@ export default function PhotographyPage({ onClose }) {
                 }}
               >
               <span className="photography-page__visual">
-                <img src={src} alt={`摄影作品 ${index % PHOTOGRAPHY_ARCHIVE.length + 1}`} draggable="false" />
+                <img src={src} alt={`摄影作品 ${index % PHOTOGRAPHY_ARCHIVE.length + 1}`} loading="lazy" decoding="async" draggable="false" />
               </span>
             </button>
           ))}
@@ -525,7 +553,7 @@ export default function PhotographyPage({ onClose }) {
                   }
                 }}
               >
-                <img src={src} alt="" draggable="false" />
+                <img src={src} alt="" loading="lazy" decoding="async" draggable="false" />
               </button>
             ))}
           </aside>
