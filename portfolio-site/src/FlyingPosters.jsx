@@ -282,11 +282,17 @@ class PosterCanvas {
     // upward on the existing 3D spiral, so the intro feels like the images
     // rise into place instead of simply fading in.
     this.introStart = -2.4;
+    this.introTarget = 0;
     this.introDuration = 1350;
     this.introActive = this.introAnimation !== false;
     this.introStartedAt = performance.now();
-    const initialScroll = this.introActive ? this.introStart : 0;
-    this.scroll = { ease: this.scrollEase, current: initialScroll, target: 0, last: initialScroll };
+    const initialScroll = this.introActive ? this.introTarget + this.introStart : this.introTarget;
+    this.scroll = {
+      ease: this.scrollEase,
+      current: initialScroll,
+      target: this.introTarget,
+      last: initialScroll,
+    };
     this.activeIndex = 0;
     this.isDown = false;
     this.hoveredIndex = null;
@@ -407,6 +413,18 @@ class PosterCanvas {
     this.introActive = false;
     this.scroll.target = this.scroll.current;
     this.scroll.last = this.scroll.current;
+  }
+
+  replayIntro() {
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+    window.clearTimeout(this.snapTimer);
+    this.introTarget = Math.round(this.scroll.target);
+    this.introStartedAt = performance.now();
+    this.introActive = true;
+    this.scroll.current = this.introTarget + this.introStart;
+    this.scroll.target = this.introTarget;
+    this.scroll.last = this.scroll.current;
+    this.hover = null;
   }
 
   snapToNearest() {
@@ -629,13 +647,15 @@ class PosterCanvas {
       const progress = Math.min(1, (now - this.introStartedAt) / this.introDuration);
       // Ease-out cubic gives the posters a quick lift followed by a soft settle.
       const eased = 1 - ((1 - progress) ** 3);
-      this.scroll.current = lerp(this.introStart, 0, eased);
-      this.scroll.target = 0;
+      this.scroll.current = lerp(this.introTarget + this.introStart, this.introTarget, eased);
+      this.scroll.target = this.introTarget;
       if (progress >= 1) {
         this.introActive = false;
-        this.scroll.current = 0;
-        this.scroll.last = 0;
-        this.onIndexChange?.(0);
+        this.scroll.current = this.introTarget;
+        this.scroll.last = this.introTarget;
+        const settledIndex = ((Math.round(this.introTarget) % this.items.length) + this.items.length)
+          % this.items.length;
+        this.onIndexChange?.(settledIndex);
       }
     } else {
       const effectiveScrollEase = this.screen.width <= MOBILE_BREAKPOINT
@@ -711,6 +731,7 @@ export default function FlyingPosters({
   cameraFov = 38,
   cameraZ = 16,
   introAnimation = true,
+  entryReplayToken = 0,
   onIndexChange,
   onPosterClick,
   focusRequest,
@@ -766,6 +787,10 @@ export default function FlyingPosters({
       instanceRef.current?.goToIndex(focusRequest.index, focusRequest.immediate);
     }
   }, [focusRequest]);
+
+  useEffect(() => {
+    if (entryReplayToken > 0) instanceRef.current?.replayIntro();
+  }, [entryReplayToken]);
 
   return (
     <div ref={containerRef} className={`posters-container ${className}`.trim()}>

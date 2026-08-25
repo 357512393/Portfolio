@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import FlyingPosters from "./FlyingPosters";
 import AboutPage from "./AboutPage.jsx";
 import PhotographyPage from "./PhotographyPage.jsx";
@@ -180,6 +180,9 @@ export function App() {
   const hideHomeForDirectEntry = aboutOpen || photographyOpen || (initialNonHomeEntry && detailIndex >= 0);
   const isHomeRoute = !aboutOpen && !photographyOpen && detailIndex < 0;
   const [homeMounted, setHomeMounted] = useState(() => !initialNonHomeEntry);
+  const [homeEntryReplay, setHomeEntryReplay] = useState(false);
+  const [homeEntryToken, setHomeEntryToken] = useState(0);
+  const previousHomeRouteRef = useRef(isHomeRoute);
   const images = useMemo(() => homeProjects.map((project) => project.image), []);
   const active = homeProjects[activeIndex];
   const activeDetailProject = detailProjects.find(
@@ -220,6 +223,17 @@ export function App() {
 
   useEffect(() => {
     if (isHomeRoute) setHomeMounted(true);
+  }, [isHomeRoute]);
+
+  useLayoutEffect(() => {
+    const wasHomeRoute = previousHomeRouteRef.current;
+    previousHomeRouteRef.current = isHomeRoute;
+    if (!isHomeRoute) {
+      setHomeEntryReplay(false);
+    } else if (!wasHomeRoute) {
+      setHomeEntryReplay(true);
+      setHomeEntryToken((token) => token + 1);
+    }
   }, [isHomeRoute]);
 
   const selectProject = (index) => {
@@ -295,7 +309,7 @@ export function App() {
   };
 
   return (
-    <main className={`portfolio-shell${preloaderDone ? " is-home-ready" : ""}${hideHomeForDirectEntry ? " is-non-home-entry" : ""}`}>
+    <main className={`portfolio-shell${preloaderDone ? " is-home-ready" : ""}${homeEntryReplay ? " is-home-entering" : ""}${hideHomeForDirectEntry ? " is-non-home-entry" : ""}`}>
       {(showPreloader || isHomeRoute) && (
         <Preloader
           sources={preloadSources}
@@ -358,6 +372,7 @@ export function App() {
           cameraFov={38}
           cameraZ={16}
           introAnimation={detailIndex < 0 && !aboutOpen && !photographyOpen}
+          entryReplayToken={homeEntryToken}
           focusRequest={focusRequest}
           onIndexChange={setActiveIndex}
           onPosterClick={handlePosterClick}

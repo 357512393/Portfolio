@@ -239,6 +239,35 @@ button:focus-visible {
   transition: opacity 1350ms ease;
 }
 
+.portfolio-shell.is-home-ready.is-home-entering > .site-header > .intro-block,
+.portfolio-shell.is-home-ready.is-home-entering > .site-header > .site-nav,
+.portfolio-shell.is-home-ready.is-home-entering > .project-index,
+.portfolio-shell.is-home-ready.is-home-entering > .project-type,
+.portfolio-shell.is-home-ready.is-home-entering > .project-detail,
+.portfolio-shell.is-home-ready.is-home-entering > .project-number,
+.portfolio-shell.is-home-ready.is-home-entering > .thumbnail-rail,
+.portfolio-shell.is-home-ready.is-home-entering > .grid-toggle {
+  animation: home-copy-reentry 1350ms ease both;
+}
+
+@keyframes home-copy-reentry {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .portfolio-shell.is-home-ready.is-home-entering > .site-header > .intro-block,
+  .portfolio-shell.is-home-ready.is-home-entering > .site-header > .site-nav,
+  .portfolio-shell.is-home-ready.is-home-entering > .project-index,
+  .portfolio-shell.is-home-ready.is-home-entering > .project-type,
+  .portfolio-shell.is-home-ready.is-home-entering > .project-detail,
+  .portfolio-shell.is-home-ready.is-home-entering > .project-number,
+  .portfolio-shell.is-home-ready.is-home-entering > .thumbnail-rail,
+  .portfolio-shell.is-home-ready.is-home-entering > .grid-toggle {
+    animation-duration: 1ms;
+  }
+}
+
 /* A deep link opens directly on its own page; do not flash the homepage
    canvas, index, or supporting copy underneath that page. */
 .portfolio-shell.is-non-home-entry > .gallery-stage {
