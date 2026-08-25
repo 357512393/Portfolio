@@ -63,5 +63,7 @@ jobs:
         env:
           OSS_BUCKET: ${{ secrets.OSS_BUCKET }}
         run: |
-          ossutil sync portfolio-site/dist/client/ "oss://$OSS_BUCKET/"
+          ossutil sync portfolio-site/dist/client/ "oss://$OSS_BUCKET/" \
+            --force \
+            --disable-ignore-error
           ossutil cp portfolio-site/dist/client/index.html "oss://$OSS_BUCKET/index.html" -f
