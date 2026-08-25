@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import SlashHoverLabel from "./SlashHoverLabel";
 import { assetUrl } from "./assetUrl";
 
@@ -28,17 +28,26 @@ const PHOTOGRAPHY_DIMENSIONS = [
 const imageLoadCache = new Map();
 
 function preloadImage(src, priority = "auto") {
-  if (imageLoadCache.has(src)) return imageLoadCache.get(src);
+  const cached = imageLoadCache.get(src);
+  if (cached) {
+    if (priority === "high" && cached.image.fetchPriority !== "high") {
+      cached.image.fetchPriority = "high";
+    }
+    return cached.promise;
+  }
+  const image = new Image();
+  image.decoding = "async";
+  image.fetchPriority = priority;
   const load = new Promise((resolve) => {
-    const image = new Image();
-    image.decoding = "async";
-    image.fetchPriority = priority;
-    const finish = () => resolve(src);
+    const finish = () => resolve(true);
     image.onload = () => Promise.resolve(image.decode?.()).catch(() => {}).then(finish);
-    image.onerror = finish;
-    image.src = src;
+    image.onerror = () => {
+      imageLoadCache.delete(src);
+      resolve(false);
+    };
   });
-  imageLoadCache.set(src, load);
+  imageLoadCache.set(src, { image, promise: load });
+  image.src = src;
   return load;
 }
 
@@ -73,6 +82,17 @@ function selectedImageFromLocation() {
   return value >= 1 && value <= PHOTOGRAPHY_ARCHIVE.length ? value - 1 : null;
 }
 
+function prioritizedOriginalIndices(selectedIndex) {
+  const indices = [selectedIndex];
+  for (let offset = 1; offset <= 3; offset += 1) {
+    const previous = selectedIndex - offset;
+    const next = selectedIndex + offset;
+    if (previous >= 0) indices.push(previous);
+    if (next < PHOTOGRAPHY_ARCHIVE.length) indices.push(next);
+  }
+  return indices;
+}
+
 export default function PhotographyPage({ active = true, onClose }) {
   const [isEntering, setIsEntering] = useState(true);
   const [deferredCoversEnabled, setDeferredCoversEnabled] = useState(false);
@@ -85,6 +105,14 @@ export default function PhotographyPage({ active = true, onClose }) {
   const selectedImageRef = useRef(null);
   const viewportWidth = typeof window !== "undefined" ? window.innerWidth : 1280;
   const mobile = viewportWidth <= 809;
+  const recordLoadedOriginal = useCallback((index) => {
+    setLoadedOriginalIndices((current) => {
+      if (current.has(index)) return current;
+      const next = new Set(current);
+      next.add(index);
+      return next;
+    });
+  }, []);
   useLayoutEffect(() => {
     if (!active) {
       setIsEntering(false);
@@ -100,6 +128,15 @@ export default function PhotographyPage({ active = true, onClose }) {
     return () => window.clearTimeout(timer);
   }, [active]);
   useEffect(() => {
+    if (selectedImage === null) return;
+    prioritizedOriginalIndices(selectedImage).forEach((index) => {
+      preloadImage(PHOTOGRAPHY_ARCHIVE[index], "high")
+        .then((loaded) => {
+          if (loaded) recordLoadedOriginal(index);
+        });
+    });
+  }, [recordLoadedOriginal, selectedImage]);
+  useEffect(() => {
     let cancelled = false;
     let cursor = 0;
 
@@ -109,14 +146,9 @@ export default function PhotographyPage({ active = true, onClose }) {
         while (!cancelled && cursor < PHOTOGRAPHY_ARCHIVE.length) {
           const index = cursor;
           cursor += 1;
-          await preloadImage(PHOTOGRAPHY_ARCHIVE[index]);
+          const loaded = await preloadImage(PHOTOGRAPHY_ARCHIVE[index]);
           if (cancelled) return;
-          setLoadedOriginalIndices((current) => {
-            if (current.has(index)) return current;
-            const next = new Set(current);
-            next.add(index);
-            return next;
-          });
+          if (loaded) recordLoadedOriginal(index);
         }
       }));
     };
@@ -125,7 +157,7 @@ export default function PhotographyPage({ active = true, onClose }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [recordLoadedOriginal]);
   // Mobile is a finite gallery. Desktop keeps one duplicate cycle for
   // seamless looping while avoiding unnecessary image decoding.
   const cycleCount = mobile ? 1 : 2;
@@ -681,7 +713,7 @@ export default function PhotographyPage({ active = true, onClose }) {
                     height={PHOTOGRAPHY_DIMENSIONS[index][1]}
                     loading="eager"
                     decoding="async"
-                    fetchPriority="auto"
+                    fetchPriority={selectedImage === index ? "high" : "auto"}
                     draggable="false"
                     onLoad={(event) => event.currentTarget.classList.add("is-loaded")}
                   />
