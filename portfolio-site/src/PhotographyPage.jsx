@@ -135,6 +135,18 @@ function detailWindowIndices(index) {
   return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
 }
 
+function originalWarmOrder(index) {
+  const center = index ?? 0;
+  const indices = [];
+  for (let distance = 0; indices.length < PHOTOGRAPHY_ARCHIVE.length; distance += 1) {
+    const next = center + distance;
+    const previous = center - distance;
+    if (next < PHOTOGRAPHY_ARCHIVE.length) indices.push(next);
+    if (distance > 0 && previous >= 0) indices.push(previous);
+  }
+  return indices;
+}
+
 function selectedImageFromHash() {
   if (typeof window === "undefined") return null;
   const value = Number(window.location.hash.match(/^#photography\/(\d+)$/)?.[1]);
@@ -167,7 +179,32 @@ export default function PhotographyPage({ active = true, onClose }) {
     return () => window.clearTimeout(timer);
   }, [active]);
   useEffect(() => {
-    preloadPhotographyEntry();
+    let cancelled = false;
+    const order = originalWarmOrder(selectedImageFromHash());
+    let cursor = 0;
+
+    const warmOriginals = async () => {
+      await preloadPhotographyEntry();
+      await Promise.all(Array.from({ length: 3 }, async () => {
+        while (!cancelled && cursor < order.length) {
+          const index = order[cursor];
+          cursor += 1;
+          await preloadImage(PHOTOGRAPHY_ARCHIVE[index]);
+          if (cancelled) return;
+          setLoadedOriginalIndices((current) => {
+            if (current.has(index)) return current;
+            const next = new Set(current);
+            next.add(index);
+            return next;
+          });
+        }
+      }));
+    };
+
+    warmOriginals();
+    return () => {
+      cancelled = true;
+    };
   }, []);
   // Mobile is a finite gallery. Desktop keeps one duplicate cycle for
   // seamless looping while avoiding unnecessary image decoding.
@@ -194,7 +231,16 @@ export default function PhotographyPage({ active = true, onClose }) {
   }, [active]);
   const ensureOriginalWindow = (index) => {
     const indices = detailWindowIndices(index);
-    setLoadedOriginalIndices(new Set(indices));
+    setLoadedOriginalIndices((current) => {
+      const next = new Set(current);
+      let changed = false;
+      indices.forEach((itemIndex) => {
+        if (next.has(itemIndex)) return;
+        next.add(itemIndex);
+        changed = true;
+      });
+      return changed ? next : current;
+    });
     indices.forEach((itemIndex) => {
       preloadImage(PHOTOGRAPHY_ARCHIVE[itemIndex], itemIndex === index ? "high" : "auto");
     });
