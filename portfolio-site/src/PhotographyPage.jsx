@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import SlashHoverLabel from "./SlashHoverLabel";
 import { assetUrl } from "./assetUrl";
 
-const PHOTOGRAPHY_ASSET_VERSION = "20260826-1";
+const PHOTOGRAPHY_ASSET_VERSION = "20260826-2";
 const photographyAssetUrl = (path) => (
   assetUrl(`${path}?v=${PHOTOGRAPHY_ASSET_VERSION}`)
 );
@@ -54,6 +54,12 @@ function preloadImage(src, priority = "auto") {
   imageLoadCache.set(src, { image, promise: load });
   image.src = src;
   return load;
+}
+
+function revealLoadedImage(image) {
+  if (image?.complete && image.naturalWidth > 0) {
+    image.classList.add("is-loaded");
+  }
 }
 
 async function preloadBatch(sources, concurrency, priority) {
@@ -635,13 +641,14 @@ export default function PhotographyPage({ active = true, onClose }) {
                 )}
                 <img
                   className="photography-page__card-image"
+                  ref={revealLoadedImage}
                   src={sourceEnabled ? src : undefined}
                   alt={`摄影作品 ${photoIndex + 1}`}
                   loading={photoIndex < 9 ? "eager" : "lazy"}
                   decoding="async"
                   fetchPriority={photoIndex < 9 ? "high" : "auto"}
                   draggable="false"
-                  onLoad={(event) => event.currentTarget.classList.add("is-loaded")}
+                  onLoad={(event) => revealLoadedImage(event.currentTarget)}
                 />
               </span>
             </button>
@@ -685,6 +692,7 @@ export default function PhotographyPage({ active = true, onClose }) {
                 }}
               >
                 <img
+                  ref={revealLoadedImage}
                   src={src}
                   alt=""
                   width={240}
@@ -692,7 +700,7 @@ export default function PhotographyPage({ active = true, onClose }) {
                   loading="eager"
                   decoding="async"
                   draggable="false"
-                  onLoad={(event) => event.currentTarget.classList.add("is-loaded")}
+                  onLoad={(event) => revealLoadedImage(event.currentTarget)}
                 />
               </button>
               );
@@ -718,6 +726,7 @@ export default function PhotographyPage({ active = true, onClose }) {
                   />
                   <img
                     className="photography-page__detail-image"
+                    ref={revealLoadedImage}
                     src={loadedOriginalIndices.has(index) ? src : undefined}
                     alt={selectedImage === index ? `摄影作品 ${index + 1}` : ""}
                     width={PHOTOGRAPHY_DIMENSIONS[index][0]}
@@ -726,7 +735,7 @@ export default function PhotographyPage({ active = true, onClose }) {
                     decoding="async"
                     fetchPriority={selectedImage === index ? "high" : "auto"}
                     draggable="false"
-                    onLoad={(event) => event.currentTarget.classList.add("is-loaded")}
+                    onLoad={(event) => revealLoadedImage(event.currentTarget)}
                   />
                 </span>
               </div>
