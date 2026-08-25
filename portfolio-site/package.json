@@ -10,6 +10,7 @@
     "test:sites": "node --test tests/sites-worker.test.mjs"
   },
   "dependencies": {
+    "@vercel/speed-insights": "^2.0.0",
     "@vitejs/plugin-react": "5.0.4",
     "ogl": "1.0.11",
     "react": "19.2.0",
