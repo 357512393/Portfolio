@@ -240,7 +240,6 @@ button:focus-visible {
 }
 
 .portfolio-shell.is-home-ready.is-home-entering > .site-header > .intro-block,
-.portfolio-shell.is-home-ready.is-home-entering > .site-header > .site-nav,
 .portfolio-shell.is-home-ready.is-home-entering > .project-index,
 .portfolio-shell.is-home-ready.is-home-entering > .project-type,
 .portfolio-shell.is-home-ready.is-home-entering > .project-detail,
@@ -257,7 +256,6 @@ button:focus-visible {
 
 @media (prefers-reduced-motion: reduce) {
   .portfolio-shell.is-home-ready.is-home-entering > .site-header > .intro-block,
-  .portfolio-shell.is-home-ready.is-home-entering > .site-header > .site-nav,
   .portfolio-shell.is-home-ready.is-home-entering > .project-index,
   .portfolio-shell.is-home-ready.is-home-entering > .project-type,
   .portfolio-shell.is-home-ready.is-home-entering > .project-detail,
@@ -1534,7 +1532,17 @@ button:focus-visible {
 }
 
 .project-page__backdrop {
-  display: none;
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: rgb(0 0 0 / 58%);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 .project-page__panel {
@@ -1789,6 +1797,7 @@ button:focus-visible {
 
 .project-page__desktop-media {
   position: relative;
+  z-index: 2;
   isolation: isolate;
   grid-column: 2;
   height: 100vh;

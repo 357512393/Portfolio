@@ -2,9 +2,9 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 
 export default defineConfig({
-  // GitHub Pages serves this repository from /-/, so relative URLs keep the
-  // build portable across Pages and local previews.
-  base: "./",
+  // Clean History API routes such as /Photo/40 must keep every script and
+  // image rooted at the domain instead of resolving under /Photo/assets/.
+  base: "/",
   build: {
     outDir: "dist/client",
     rollupOptions: {

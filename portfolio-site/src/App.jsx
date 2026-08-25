@@ -185,9 +185,11 @@ export function App() {
   ));
   const [showPreloader] = useState(() => !initialNonHomeEntry);
   const [preloaderDone, setPreloaderDone] = useState(initialNonHomeEntry);
-  const hideHomeForDirectEntry = aboutOpen || photographyOpen || (initialNonHomeEntry && detailIndex >= 0);
   const isHomeRoute = !aboutOpen && !photographyOpen && detailIndex < 0;
   const [homeMounted, setHomeMounted] = useState(() => !initialNonHomeEntry);
+  const hideHomeForDirectEntry = aboutOpen
+    || photographyOpen
+    || (!homeMounted && initialNonHomeEntry && detailIndex >= 0);
   const [homeEntryReplay, setHomeEntryReplay] = useState(false);
   const [homeEntryToken, setHomeEntryToken] = useState(0);
   const previousHomeRouteRef = useRef(isHomeRoute);

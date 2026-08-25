@@ -154,6 +154,9 @@ export default function PhotographyPage({ active = true, onClose }) {
       return undefined;
     }
 
+    const routeImage = selectedImageFromLocation();
+    selectedImageRef.current = routeImage;
+    setSelectedImage(routeImage);
     setIsEntering(true);
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const timer = window.setTimeout(() => setIsEntering(false), reducedMotion ? 1 : 1350);
