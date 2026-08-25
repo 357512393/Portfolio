@@ -15,14 +15,14 @@ export const PHOTOGRAPHY_THUMBNAILS = PHOTOGRAPHY_ARCHIVE.map((_, index) => (
 ));
 
 const PHOTOGRAPHY_DIMENSIONS = [
-  [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 2164], [1440, 2164], [1440, 2164], [1440, 2164],
-  [1440, 2164], [1440, 1918], [1440, 1918], [1440, 1918], [1440, 1918], [1440, 1918], [1440, 1918], [1440, 1800],
-  [1440, 918], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1080], [1440, 1920], [1440, 1920],
-  [1440, 1020], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920],
-  [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1924], [1440, 2164], [1440, 2110], [1440, 2162], [1440, 2162],
-  [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1920], [1440, 2210],
-  [1440, 1920], [1440, 1920], [1440, 1920], [1440, 1922], [1440, 1920], [2560, 1086], [1440, 1920], [1440, 960],
-  [1440, 960], [1440, 612], [2390, 1344], [1440, 1920], [1366, 2560], [1298, 2560], [1440, 1920], [1440, 1920],
+  [1080, 1440], [1080, 1440], [1080, 1440], [1080, 1440], [958, 1440], [852, 1280], [852, 1280], [958, 1440],
+  [958, 1440], [1081, 1440], [1081, 1440], [1081, 1440], [961, 1280], [1081, 1440], [1081, 1440], [1152, 1440],
+  [1440, 918], [1080, 1440], [1080, 1440], [1080, 1440], [1080, 1440], [1440, 1080], [1080, 1440], [1080, 1440],
+  [1440, 1020], [840, 1120], [1080, 1440], [1080, 1440], [1080, 1440], [1080, 1440], [1080, 1440], [1080, 1440],
+  [1080, 1440], [1080, 1440], [1080, 1440], [1078, 1440], [958, 1440], [983, 1440], [853, 1280], [959, 1440],
+  [1080, 1440], [1080, 1440], [1080, 1440], [1080, 1440], [960, 1280], [960, 1280], [960, 1280], [938, 1440],
+  [960, 1280], [1080, 1440], [840, 1120], [1079, 1440], [1080, 1440], [1440, 611], [1080, 1440], [1440, 960],
+  [1440, 960], [1440, 612], [1440, 810], [1080, 1440], [768, 1440], [730, 1440], [1080, 1440], [1080, 1440],
 ];
 
 const imageLoadCache = new Map();
@@ -84,7 +84,7 @@ function selectedImageFromLocation() {
 
 function prioritizedOriginalIndices(selectedIndex) {
   const indices = [selectedIndex];
-  for (let offset = 1; offset <= 3; offset += 1) {
+  for (let offset = 1; offset <= 2; offset += 1) {
     const previous = selectedIndex - offset;
     const next = selectedIndex + offset;
     if (previous >= 0) indices.push(previous);
@@ -129,7 +129,13 @@ export default function PhotographyPage({ active = true, onClose }) {
   }, [active]);
   useEffect(() => {
     if (selectedImage === null) return;
+
+    // Give the active DOM image its URL immediately. The browser can begin
+    // the visible request without waiting for the separate preloader to
+    // finish loading and decoding the same file.
+    recordLoadedOriginal(selectedImage);
     prioritizedOriginalIndices(selectedImage).forEach((index) => {
+      if (index === selectedImage) return;
       preloadImage(PHOTOGRAPHY_ARCHIVE[index], "high")
         .then((loaded) => {
           if (loaded) recordLoadedOriginal(index);
