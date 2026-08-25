@@ -32,9 +32,9 @@ export default function AboutPage({ onClose, onOpenPhotography }) {
     <section className="about-page is-revealing" aria-label="关于">
       <header className="about-page__header">
         <nav className={`site-nav about-page__nav${navEntering ? " is-entering" : ""}`} aria-label="页面导航">
-          <a href="#work" aria-label="项目" onClick={onClose}>{reveal(<SlashHoverLabel label="项目" />, "", true)}</a>
-          <a href="#photography" aria-label="摄影" onClick={onOpenPhotography}>{reveal(<SlashHoverLabel label="摄影" />, "", true)}</a>
-          <a className="is-current" href="#about-me" aria-label="关于" aria-current="page" onClick={(event) => event.preventDefault()}>{reveal(<SlashHoverLabel label="关于" />, "", true)}</a>
+          <a href="/" aria-label="项目" onClick={onClose}>{reveal(<SlashHoverLabel label="项目" />, "", true)}</a>
+          <a href="/Photo" aria-label="摄影" onClick={onOpenPhotography}>{reveal(<SlashHoverLabel label="摄影" />, "", true)}</a>
+          <a className="is-current" href="/About" aria-label="关于" aria-current="page" onClick={(event) => event.preventDefault()}>{reveal(<SlashHoverLabel label="关于" />, "", true)}</a>
         </nav>
       </header>
 

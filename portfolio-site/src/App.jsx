@@ -121,17 +121,25 @@ const homeProjects = [
   })),
 ];
 
-function detailProjectIndexFromHash() {
-  const slug = window.location.hash.match(/^#project\/(.+)$/)?.[1];
+function detailProjectIndexFromLocation() {
+  const slug = window.history.state?.projectSlug
+    ?? window.location.hash.match(/^#project\/(.+)$/)?.[1];
   return slug ? detailProjects.findIndex((project) => project.slug === slug) : -1;
 }
 
-function isAboutHash() {
-  return window.location.hash === "#about-me" || window.location.hash === "#about";
+function isAboutRoute() {
+  return /^\/about\/?$/i.test(window.location.pathname)
+    || window.location.hash === "#about-me"
+    || window.location.hash === "#about";
 }
 
-function isPhotographyHash() {
-  return /^#photography(?:\/\d+)?$/.test(window.location.hash);
+function isPhotographyRoute() {
+  return /^\/photo(?:\/\d+)?\/?$/i.test(window.location.pathname)
+    || /^#photography(?:\/\d+)?$/.test(window.location.hash);
+}
+
+function rootRoute() {
+  return `/${window.location.search}`;
 }
 
 function homeProjectIndexForDetail(index) {
@@ -165,15 +173,15 @@ export function App() {
   const desktopPosterBase = 178;
   const posterWidth = isMobile ? 176 : desktopPosterBase * (desktopWidth / 1280);
   const posterHeight = posterWidth * 0.5625;
-  const [activeIndex, setActiveIndex] = useState(() => homeProjectIndexForDetail(detailProjectIndexFromHash()));
+  const [activeIndex, setActiveIndex] = useState(() => homeProjectIndexForDetail(detailProjectIndexFromLocation()));
   const [focusRequest, setFocusRequest] = useState(null);
-  const [detailIndex, setDetailIndex] = useState(() => detailProjectIndexFromHash());
-  const [aboutOpen, setAboutOpen] = useState(() => isAboutHash());
-  const [photographyOpen, setPhotographyOpen] = useState(() => isPhotographyHash());
-  const [photographyMounted, setPhotographyMounted] = useState(() => isPhotographyHash());
+  const [detailIndex, setDetailIndex] = useState(() => detailProjectIndexFromLocation());
+  const [aboutOpen, setAboutOpen] = useState(() => isAboutRoute());
+  const [photographyOpen, setPhotographyOpen] = useState(() => isPhotographyRoute());
+  const [photographyMounted, setPhotographyMounted] = useState(() => isPhotographyRoute());
   const [navMotionLocked, setNavMotionLocked] = useState(false);
   const [initialNonHomeEntry] = useState(() => (
-    isAboutHash() || isPhotographyHash() || detailProjectIndexFromHash() >= 0
+    isAboutRoute() || isPhotographyRoute() || detailProjectIndexFromLocation() >= 0
   ));
   const [showPreloader] = useState(() => !initialNonHomeEntry);
   const [preloaderDone, setPreloaderDone] = useState(initialNonHomeEntry);
@@ -197,11 +205,11 @@ export function App() {
   ), [images]);
 
   useEffect(() => {
-    const syncFromHash = () => {
-      const index = detailProjectIndexFromHash();
-      const nextPhotographyOpen = isPhotographyHash();
+    const syncFromLocation = () => {
+      const index = detailProjectIndexFromLocation();
+      const nextPhotographyOpen = isPhotographyRoute();
       setDetailIndex(index);
-      setAboutOpen(isAboutHash());
+      setAboutOpen(isAboutRoute());
       setPhotographyOpen(nextPhotographyOpen);
       if (nextPhotographyOpen) setPhotographyMounted(true);
       if (index >= 0) {
@@ -213,11 +221,25 @@ export function App() {
       }
     };
 
-    window.addEventListener("popstate", syncFromHash);
-    window.addEventListener("hashchange", syncFromHash);
+    window.addEventListener("popstate", syncFromLocation);
+    window.addEventListener("hashchange", syncFromLocation);
+
+    const legacyPhotography = window.location.hash.match(/^#photography(?:\/(\d+))?$/);
+    if (legacyPhotography) {
+      const suffix = legacyPhotography[1] ? `/${legacyPhotography[1]}` : "";
+      window.history.replaceState({}, "", `/Photo${suffix}${window.location.search}`);
+    } else if (window.location.hash === "#about-me" || window.location.hash === "#about") {
+      window.history.replaceState({}, "", `/About${window.location.search}`);
+    } else {
+      const legacyProjectSlug = window.location.hash.match(/^#project\/(.+)$/)?.[1];
+      if (legacyProjectSlug) {
+        window.history.replaceState({ projectSlug: legacyProjectSlug }, "", rootRoute());
+      }
+    }
+
     return () => {
-      window.removeEventListener("popstate", syncFromHash);
-      window.removeEventListener("hashchange", syncFromHash);
+      window.removeEventListener("popstate", syncFromLocation);
+      window.removeEventListener("hashchange", syncFromLocation);
     };
   }, []);
 
@@ -259,14 +281,14 @@ export function App() {
     setFocusRequest({ index: homeIndex, token: Date.now() });
     setDetailIndex(targetDetailIndex);
     const method = replace ? "replaceState" : "pushState";
-    window.history[method]({}, "", `#project/${targetSlug}`);
+    window.history[method]({ projectSlug: targetSlug }, "", rootRoute());
   };
 
   const openDetailProject = (index, replace = false) => {
     const project = detailProjects[index];
     setDetailIndex(index);
     const method = replace ? "replaceState" : "pushState";
-    window.history[method]({}, "", `#project/${project.slug}`);
+    window.history[method]({ projectSlug: project.slug }, "", rootRoute());
   };
 
   const closeProject = () => {
@@ -275,7 +297,16 @@ export function App() {
     setActiveIndex(targetIndex);
     setFocusRequest({ index: targetIndex, token: Date.now(), immediate: true });
     setDetailIndex(-1);
-    window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
+    window.history.replaceState({}, "", rootRoute());
+  };
+
+  const openHome = (event) => {
+    event?.preventDefault();
+    setNavMotionLocked(false);
+    setAboutOpen(false);
+    setPhotographyOpen(false);
+    setDetailIndex(-1);
+    window.history.replaceState({}, "", rootRoute());
   };
 
   const openAbout = (event) => {
@@ -284,7 +315,7 @@ export function App() {
     setDetailIndex(-1);
     setAboutOpen(true);
     setPhotographyOpen(false);
-    window.history.pushState({}, "", "#about-me");
+    window.history.pushState({}, "", `/About${window.location.search}`);
   };
 
   const openPhotography = (event) => {
@@ -294,18 +325,19 @@ export function App() {
     setDetailIndex(-1);
     setPhotographyMounted(true);
     setPhotographyOpen(true);
-    window.history.pushState({}, "", "#photography");
+    window.history.pushState({}, "", `/Photo${window.location.search}`);
   };
 
   const closePhotography = () => {
     setPhotographyOpen(false);
-    window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
+    window.history.replaceState({}, "", rootRoute());
   };
 
-  const closeAbout = () => {
+  const closeAbout = (event) => {
+    event?.preventDefault();
     setNavMotionLocked(!isMobile);
     setAboutOpen(false);
-    window.history.replaceState({}, "", `${window.location.pathname}${window.location.search}`);
+    window.history.replaceState({}, "", rootRoute());
   };
 
   return (
@@ -333,10 +365,10 @@ export function App() {
           aria-label="页面导航"
           onMouseLeave={() => setNavMotionLocked(false)}
         >
-          <a className={!aboutOpen && !photographyOpen ? "is-current" : ""} href="#work" aria-label="项目" aria-current={!aboutOpen && !photographyOpen ? "page" : undefined}><SlashHoverLabel label="项目" /></a>
-          <a href="#photography" aria-label="摄影" className={photographyOpen ? "is-current" : ""} onClick={photographyOpen ? (event) => event.preventDefault() : openPhotography}><SlashHoverLabel label="摄影" /></a>
+          <a className={!aboutOpen && !photographyOpen ? "is-current" : ""} href="/" aria-label="项目" aria-current={!aboutOpen && !photographyOpen ? "page" : undefined} onClick={openHome}><SlashHoverLabel label="项目" /></a>
+          <a href="/Photo" aria-label="摄影" className={photographyOpen ? "is-current" : ""} onClick={photographyOpen ? (event) => event.preventDefault() : openPhotography}><SlashHoverLabel label="摄影" /></a>
           <a
-            href="#about-me"
+            href="/About"
             aria-label="关于"
             aria-current={aboutOpen ? "page" : undefined}
             className={aboutOpen ? "is-current" : ""}

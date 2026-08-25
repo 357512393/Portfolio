@@ -127,16 +127,19 @@ export function preloadPhotographyEntry() {
   return photographyEntryPreload;
 }
 
-function selectedImageFromHash() {
+function selectedImageFromLocation() {
   if (typeof window === "undefined") return null;
-  const value = Number(window.location.hash.match(/^#photography\/(\d+)$/)?.[1]);
+  const value = Number(
+    window.location.pathname.match(/^\/photo\/(\d+)\/?$/i)?.[1]
+      ?? window.location.hash.match(/^#photography\/(\d+)$/)?.[1],
+  );
   return value >= 1 && value <= PHOTOGRAPHY_ARCHIVE.length ? value - 1 : null;
 }
 
 export default function PhotographyPage({ active = true, onClose }) {
   const [isEntering, setIsEntering] = useState(true);
   const [deferredCoversEnabled, setDeferredCoversEnabled] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(selectedImageFromHash);
+  const [selectedImage, setSelectedImage] = useState(selectedImageFromLocation);
   const [loadedOriginalIndices, setLoadedOriginalIndices] = useState(() => new Set());
   const stageRef = useRef(null);
   const trackRef = useRef(null);
@@ -210,19 +213,19 @@ export default function PhotographyPage({ active = true, onClose }) {
     selectedImageRef.current = index;
     setSelectedImage(index);
     const method = push ? "pushState" : "replaceState";
-    window.history[method]({}, "", `#photography/${index + 1}`);
+    window.history[method]({}, "", `/Photo/${index + 1}${window.location.search}`);
   };
   const closeDetailImage = () => {
     selectedImageRef.current = null;
     setSelectedImage(null);
-    window.history.replaceState({}, "", "#photography");
+    window.history.replaceState({}, "", `/Photo${window.location.search}`);
   };
   useEffect(() => {
     selectedImageRef.current = selectedImage;
   }, [selectedImage]);
   useEffect(() => {
     const syncSelectedImage = () => {
-      const index = selectedImageFromHash();
+      const index = selectedImageFromLocation();
       selectedImageRef.current = index;
       setSelectedImage(index);
     };
