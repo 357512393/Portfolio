@@ -119,32 +119,12 @@ async function preloadBatch(sources, concurrency, priority) {
 let photographyEntryPreload;
 export function preloadPhotographyEntry() {
   if (!photographyEntryPreload) {
-    photographyEntryPreload = Promise.all([
-      preloadBatch(PHOTOGRAPHY_COVERS.slice(0, 9), 6, "high"),
-      preloadBatch(PHOTOGRAPHY_THUMBNAILS, 8, "high"),
-    ]);
+    // Start the lightweight thumbnail requests alongside the deck, but use
+    // completion of every 3D cover as the gate for warming the originals.
+    preloadBatch(PHOTOGRAPHY_THUMBNAILS, 8, "high");
+    photographyEntryPreload = preloadBatch(PHOTOGRAPHY_COVERS, 6, "high");
   }
   return photographyEntryPreload;
-}
-
-function detailWindowIndices(index) {
-  if (index === null) return [];
-  const lastIndex = PHOTOGRAPHY_ARCHIVE.length - 1;
-  const start = Math.max(0, index - 3);
-  const end = Math.min(lastIndex, index + 3);
-  return Array.from({ length: end - start + 1 }, (_, offset) => start + offset);
-}
-
-function originalWarmOrder(index) {
-  const center = index ?? 0;
-  const indices = [];
-  for (let distance = 0; indices.length < PHOTOGRAPHY_ARCHIVE.length; distance += 1) {
-    const next = center + distance;
-    const previous = center - distance;
-    if (next < PHOTOGRAPHY_ARCHIVE.length) indices.push(next);
-    if (distance > 0 && previous >= 0) indices.push(previous);
-  }
-  return indices;
 }
 
 function selectedImageFromHash() {
@@ -157,9 +137,7 @@ export default function PhotographyPage({ active = true, onClose }) {
   const [isEntering, setIsEntering] = useState(true);
   const [deferredCoversEnabled, setDeferredCoversEnabled] = useState(false);
   const [selectedImage, setSelectedImage] = useState(selectedImageFromHash);
-  const [loadedOriginalIndices, setLoadedOriginalIndices] = useState(() => (
-    new Set(detailWindowIndices(selectedImageFromHash()))
-  ));
+  const [loadedOriginalIndices, setLoadedOriginalIndices] = useState(() => new Set());
   const stageRef = useRef(null);
   const trackRef = useRef(null);
   const thumbnailRailRef = useRef(null);
@@ -180,14 +158,13 @@ export default function PhotographyPage({ active = true, onClose }) {
   }, [active]);
   useEffect(() => {
     let cancelled = false;
-    const order = originalWarmOrder(selectedImageFromHash());
     let cursor = 0;
 
     const warmOriginals = async () => {
       await preloadPhotographyEntry();
       await Promise.all(Array.from({ length: 3 }, async () => {
-        while (!cancelled && cursor < order.length) {
-          const index = order[cursor];
+        while (!cancelled && cursor < PHOTOGRAPHY_ARCHIVE.length) {
+          const index = cursor;
           cursor += 1;
           await preloadImage(PHOTOGRAPHY_ARCHIVE[index]);
           if (cancelled) return;
@@ -229,22 +206,6 @@ export default function PhotographyPage({ active = true, onClose }) {
     // it; StrictMode's mount rehearsal never changes `active` to false.
     if (!active) motionInitializedRef.current = true;
   }, [active]);
-  const ensureOriginalWindow = (index) => {
-    const indices = detailWindowIndices(index);
-    setLoadedOriginalIndices((current) => {
-      const next = new Set(current);
-      let changed = false;
-      indices.forEach((itemIndex) => {
-        if (next.has(itemIndex)) return;
-        next.add(itemIndex);
-        changed = true;
-      });
-      return changed ? next : current;
-    });
-    indices.forEach((itemIndex) => {
-      preloadImage(PHOTOGRAPHY_ARCHIVE[itemIndex], itemIndex === index ? "high" : "auto");
-    });
-  };
   const selectDetailImage = (index, push = false) => {
     selectedImageRef.current = index;
     setSelectedImage(index);
@@ -258,7 +219,6 @@ export default function PhotographyPage({ active = true, onClose }) {
   };
   useEffect(() => {
     selectedImageRef.current = selectedImage;
-    if (selectedImage !== null) ensureOriginalWindow(selectedImage);
   }, [selectedImage]);
   useEffect(() => {
     const syncSelectedImage = () => {
@@ -776,9 +736,9 @@ export default function PhotographyPage({ active = true, onClose }) {
                     alt={selectedImage === index ? `摄影作品 ${index + 1}` : ""}
                     width={PHOTOGRAPHY_DIMENSIONS[index][0]}
                     height={PHOTOGRAPHY_DIMENSIONS[index][1]}
-                    loading={Math.abs(selectedImage - index) <= 1 ? "eager" : "lazy"}
+                    loading="eager"
                     decoding="async"
-                    fetchPriority={selectedImage === index ? "high" : "auto"}
+                    fetchPriority="auto"
                     draggable="false"
                     onLoad={(event) => event.currentTarget.classList.add("is-loaded")}
                   />
