@@ -179,6 +179,7 @@ export function App() {
   const [preloaderDone, setPreloaderDone] = useState(initialNonHomeEntry);
   const hideHomeForDirectEntry = aboutOpen || photographyOpen || (initialNonHomeEntry && detailIndex >= 0);
   const isHomeRoute = !aboutOpen && !photographyOpen && detailIndex < 0;
+  const [homeMounted, setHomeMounted] = useState(() => !initialNonHomeEntry);
   const images = useMemo(() => homeProjects.map((project) => project.image), []);
   const active = homeProjects[activeIndex];
   const activeDetailProject = detailProjects.find(
@@ -216,6 +217,10 @@ export function App() {
       window.removeEventListener("hashchange", syncFromHash);
     };
   }, []);
+
+  useEffect(() => {
+    if (isHomeRoute) setHomeMounted(true);
+  }, [isHomeRoute]);
 
   const selectProject = (index) => {
     setActiveIndex(index);
@@ -341,8 +346,9 @@ export function App() {
         ))}
       </section>
 
-      <section className="gallery-stage" aria-label="作品图片滑动区域">
-        {preloaderDone && !hideHomeForDirectEntry && <FlyingPosters
+      <section className="gallery-stage" aria-label="作品图片滑动区域" aria-hidden={!isHomeRoute}>
+        {preloaderDone && homeMounted && <FlyingPosters
+          active={isHomeRoute}
           items={images}
           planeWidth={posterWidth}
           planeHeight={posterHeight}

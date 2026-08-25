@@ -241,7 +241,11 @@ button:focus-visible {
 
 /* A deep link opens directly on its own page; do not flash the homepage
    canvas, index, or supporting copy underneath that page. */
-.portfolio-shell.is-non-home-entry > .gallery-stage,
+.portfolio-shell.is-non-home-entry > .gallery-stage {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .portfolio-shell.is-non-home-entry > .project-index,
 .portfolio-shell.is-non-home-entry > .project-type,
 .portfolio-shell.is-non-home-entry > .project-detail,

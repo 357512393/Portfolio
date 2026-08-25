@@ -297,6 +297,10 @@ class PosterCanvas {
     this.clickCandidate = null;
     this.dragDistance = 0;
     this.snapTimer = null;
+    this.listenersAttached = false;
+    const startActive = this.active !== false;
+    this.active = false;
+    this.pausedAt = 0;
 
     this.onResize = this.onResize.bind(this);
     this.onWheel = this.onWheel.bind(this);
@@ -310,8 +314,7 @@ class PosterCanvas {
     this.createScene();
     this.onResize();
     this.createMedias();
-    this.addEventListeners();
-    this.update();
+    this.setActive(startActive);
   }
 
   createRenderer() {
@@ -586,10 +589,39 @@ class PosterCanvas {
       media.planeHeight = planeHeight;
       media.minPlaneWidth = minPlaneWidth;
     });
+    if (this.active) this.onResize();
+  }
+
+  setActive(active) {
+    const nextActive = Boolean(active);
+    if (this.active === nextActive) return;
+    this.active = nextActive;
+
+    if (!nextActive) {
+      this.pausedAt = performance.now();
+      cancelAnimationFrame(this.frame);
+      window.clearTimeout(this.snapTimer);
+      this.removeEventListeners();
+      this.isDown = false;
+      this.clickCandidate = null;
+      this.hoveredIndex = null;
+      this.hover = null;
+      this.canvas.style.cursor = "default";
+      return;
+    }
+
+    if (this.pausedAt && this.introActive) {
+      this.introStartedAt += performance.now() - this.pausedAt;
+    }
+    this.pausedAt = 0;
+    this.lastFrameAt = performance.now();
     this.onResize();
+    this.addEventListeners();
+    this.update();
   }
 
   update() {
+    if (!this.active) return;
     const now = performance.now();
     const deltaSeconds = Math.min((now - (this.lastFrameAt || now)) / 1000, 1 / 30) || 1 / 60;
     this.lastFrameAt = now;
@@ -636,6 +668,8 @@ class PosterCanvas {
   }
 
   addEventListeners() {
+    if (this.listenersAttached) return;
+    this.listenersAttached = true;
     window.addEventListener("resize", this.onResize);
     window.addEventListener("wheel", this.onWheel, { passive: true });
     this.canvas.addEventListener("mousedown", this.onPointerDown);
@@ -647,9 +681,9 @@ class PosterCanvas {
     window.addEventListener("touchend", this.onPointerUp, { passive: true });
   }
 
-  destroy() {
-    cancelAnimationFrame(this.frame);
-    window.clearTimeout(this.snapTimer);
+  removeEventListeners() {
+    if (!this.listenersAttached) return;
+    this.listenersAttached = false;
     window.removeEventListener("resize", this.onResize);
     window.removeEventListener("wheel", this.onWheel);
     this.canvas.removeEventListener("mousedown", this.onPointerDown);
@@ -660,9 +694,14 @@ class PosterCanvas {
     window.removeEventListener("touchmove", this.onPointerMove);
     window.removeEventListener("touchend", this.onPointerUp);
   }
+
+  destroy() {
+    this.setActive(false);
+  }
 }
 
 export default function FlyingPosters({
+  active = true,
   items = [],
   planeWidth = 264,
   planeHeight = 148.5,
@@ -717,6 +756,10 @@ export default function FlyingPosters({
   useEffect(() => {
     instanceRef.current?.setPlaneSize(planeWidth, planeHeight, minPlaneWidth);
   }, [planeWidth, planeHeight, minPlaneWidth]);
+
+  useEffect(() => {
+    instanceRef.current?.setActive(active);
+  }, [active]);
 
   useEffect(() => {
     if (focusRequest) {
