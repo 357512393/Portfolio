@@ -360,7 +360,7 @@ export function App() {
             <span>从0到1参与产品建设，覆盖移动端、B端系统</span>
             <span>及运营体验设计，持续探索AI产品体验</span>
           </p>
-          <p className="intro-block__email">357512393@qq.com</p>
+          <p className="intro-block__email">zhi_9650 / 357512393@qq.com</p>
         </div>
         <nav
           className={`site-nav${aboutOpen ? " is-about-open" : ""}${photographyOpen ? " is-photography-open" : ""}${navMotionLocked ? " is-transition-locked" : ""}`}
