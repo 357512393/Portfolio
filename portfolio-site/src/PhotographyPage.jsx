@@ -204,11 +204,6 @@ export default function PhotographyPage({ active = true, onClose }) {
     const method = push ? "pushState" : "replaceState";
     window.history[method]({}, "", `/Photo/${index + 1}${window.location.search}`);
   };
-  const closeDetailImage = () => {
-    selectedImageRef.current = null;
-    setSelectedImage(null);
-    window.history.replaceState({}, "", `/Photo${window.location.search}`);
-  };
   useEffect(() => {
     selectedImageRef.current = selectedImage;
   }, [selectedImage]);
@@ -660,8 +655,8 @@ export default function PhotographyPage({ active = true, onClose }) {
       <button
         className={`photography-page__return${selectedImage === null ? "" : " is-detail"}`}
         type="button"
-        aria-label={selectedImage === null ? "返回项目" : "返回摄影作品"}
-        onClick={() => (selectedImage === null ? onClose() : closeDetailImage())}
+        aria-label="返回项目"
+        onClick={onClose}
       >
         <SlashHoverLabel label="返回项目" />
       </button>
