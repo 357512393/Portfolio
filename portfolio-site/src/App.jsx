@@ -46,7 +46,7 @@ const detailProjects = [
   },
   {
     image: assetUrl("/assets/4.webp"),
-    images: [...projectImages("ai-design-workflow", [18, 19]), otherDesignFinalImage],
+    images: [...projectImages("ai-design-workflow", [18, 19, 20]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("ai-design-workflow", [12, 13]),
     slug: "ai-design-workflow",
     title: "AI设计工作流",
