@@ -20,7 +20,7 @@ function ProjectMedia({ project, mobile = false, switching = false, contentRef }
           <img
             src={image}
             alt={`${project.title}项目展示 ${index + 1}`}
-            loading="eager"
+            loading={index < 2 ? "eager" : "lazy"}
             decoding="async"
             fetchPriority={index === 0 ? "high" : "auto"}
           />
@@ -63,7 +63,7 @@ const PROJECT_MEDIA_STAGGER = 70;
 const PROJECT_MEDIA_LEAD_DELAY = 280;
 const PROJECT_ANIMATION_BUFFER = 40;
 
-function preloadImage(src) {
+function preloadImage(src, priority = "auto") {
   if (imagePreloadCache.has(src)) return imagePreloadCache.get(src);
 
   const promise = new Promise((resolve) => {
@@ -96,6 +96,7 @@ function preloadImage(src) {
 
     image.decoding = "async";
     image.loading = "eager";
+    image.fetchPriority = priority;
     image.onload = decode;
     image.onerror = finish;
     image.src = src;
@@ -106,34 +107,29 @@ function preloadImage(src) {
   return promise;
 }
 
-function warmProjectMedia(project) {
-  return Promise.all(getProjectMediaSources(project).map(preloadImage));
+async function preloadBatch(sources, concurrency = 2, priority = "auto") {
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < sources.length) {
+      const source = sources[cursor];
+      cursor += 1;
+      await preloadImage(source, priority);
+    }
+  };
+
+  await Promise.all(Array.from({ length: Math.min(concurrency, sources.length) }, worker));
 }
 
-function isProjectMediaCached(project) {
-  return getProjectMediaSources(project).every((image) => imagePreloadSettled.has(image));
+function warmProjectFirstMedia(project, priority = "high") {
+  return preloadImage(getProjectMediaSources(project)[0], priority);
 }
 
-function ProjectMediaPreload({ projects, activeIndex }) {
-  const indexes = [
-    activeIndex,
-    (activeIndex - 1 + projects.length) % projects.length,
-    (activeIndex + 1) % projects.length,
-  ];
-  const sources = [...new Set(indexes.flatMap((index) => getProjectMediaSources(projects[index])))];
-  const sourceSignature = sources.join("\u0000");
+function warmProjectRemainingMedia(project) {
+  return preloadBatch(getProjectMediaSources(project).slice(1), 2, "low");
+}
 
-  useEffect(() => {
-    sources.forEach((source) => preloadImage(source));
-  }, [sourceSignature]);
-
-  return (
-    <div className="project-page__media-preload" aria-hidden="true">
-      {sources.map((source) => (
-        <img key={source} src={source} alt="" loading="eager" decoding="async" fetchPriority="high" />
-      ))}
-    </div>
-  );
+function isProjectFirstMediaCached(project) {
+  return imagePreloadSettled.has(getProjectMediaSources(project)[0]);
 }
 
 export default function ProjectDetail({ projects, activeIndex, onSelect, onClose }) {
@@ -151,7 +147,7 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
   const [readyProjectSlug, setReadyProjectSlug] = useState(null);
   const [switchingIndex, setSwitchingIndex] = useState(null);
   const [isProjectEntering, setIsProjectEntering] = useState(false);
-  const mediaReady = readyProjectSlug === project.slug || isProjectMediaCached(project);
+  const mediaReady = readyProjectSlug === project.slug || isProjectFirstMediaCached(project);
   const isProjectSwitching = isProjectEntering || previousActiveIndexRef.current !== activeIndex || switchingIndex === activeIndex;
   const desktopCopyMotionClass = `${isProjectEntering ? " is-project-entering" : ""}${isProjectSwitching ? " is-project-switching" : ""}`;
   const projectAnimationCleanupDelay = Math.max(
@@ -162,8 +158,12 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
 
   useEffect(() => {
     let cancelled = false;
-    warmProjectMedia(project).then(() => {
-      if (!cancelled) setReadyProjectSlug(project.slug);
+    setReadyProjectSlug(isProjectFirstMediaCached(project) ? project.slug : null);
+    warmProjectFirstMedia(project, "high").then(() => {
+      if (!cancelled) {
+        setReadyProjectSlug(project.slug);
+        warmProjectRemainingMedia(project);
+      }
     });
 
     return () => {
@@ -174,8 +174,21 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
   useEffect(() => {
     const previousIndex = (activeIndex - 1 + projects.length) % projects.length;
     const nextIndex = (activeIndex + 1) % projects.length;
-    warmProjectMedia(projects[previousIndex]);
-    warmProjectMedia(projects[nextIndex]);
+    const warmNeighbors = () => {
+      warmProjectFirstMedia(projects[previousIndex], "low");
+      warmProjectFirstMedia(projects[nextIndex], "low");
+    };
+    const idleId = typeof window.requestIdleCallback === "function"
+      ? window.requestIdleCallback(warmNeighbors, { timeout: 1200 })
+      : window.setTimeout(warmNeighbors, 400);
+
+    return () => {
+      if (typeof window.cancelIdleCallback === "function") {
+        window.cancelIdleCallback(idleId);
+      } else {
+        window.clearTimeout(idleId);
+      }
+    };
   }, [activeIndex, projects]);
 
   useEffect(() => {
@@ -252,7 +265,7 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
   const navigate = useCallback((nextIndex) => {
     const requestId = navigationRequestRef.current + 1;
     navigationRequestRef.current = requestId;
-    warmProjectMedia(projects[nextIndex]).then(() => {
+    warmProjectFirstMedia(projects[nextIndex], "high").then(() => {
       if (navigationRequestRef.current === requestId) onSelect(nextIndex);
     });
   }, [onSelect, projects]);
@@ -278,7 +291,6 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
       onWheel={stopScrollPropagation}
       onTouchMove={stopScrollPropagation}
     >
-      <ProjectMediaPreload projects={projects} activeIndex={activeIndex} />
       <button className="project-page__backdrop" type="button" onClick={onClose} aria-label="关闭项目详情" />
       <aside ref={panelRef} className="project-page__panel" role="dialog" aria-modal="true" aria-labelledby="project-page-title">
         <header className="project-page__header">

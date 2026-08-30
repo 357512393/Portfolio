@@ -1809,23 +1809,6 @@ button:focus-visible {
   overscroll-behavior: contain;
 }
 
-.project-page__media-preload {
-  position: fixed;
-  z-index: -1;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  opacity: 0;
-  pointer-events: none;
-  clip-path: inset(50%);
-}
-
-.project-page__media-preload img {
-  display: block;
-  width: 1px;
-  height: 1px;
-}
-
 .project-page__desktop-media::after {
   position: absolute;
   z-index: 1;

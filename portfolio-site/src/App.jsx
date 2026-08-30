@@ -6,7 +6,8 @@ import SlashHoverLabel from "./SlashHoverLabel";
 import Preloader from "./Preloader";
 import { assetUrl } from "./assetUrl";
 
-const ProjectDetail = lazy(() => import("./ProjectDetail.jsx"));
+const loadProjectDetail = () => import("./ProjectDetail.jsx");
+const ProjectDetail = lazy(loadProjectDetail);
 
 const projectImages = (slug, numbers) => (
   numbers.map((number) => assetUrl(`/assets/projects/${slug}/${number}.webp`))
@@ -199,12 +200,20 @@ export function App() {
     (project) => project.slug === (active.detailSlug ?? active.slug),
   );
   const thumbnailImages = activeDetailProject?.thumbnails ?? activeDetailProject?.images ?? [];
-  const preloadSources = useMemo(() => (
-    [
-      ...images,
-      ...detailProjects.flatMap((project) => [project.image, ...project.images, ...project.thumbnails]),
-    ]
-  ), [images]);
+
+  useEffect(() => {
+    if (!isHomeRoute || !preloaderDone || !activeDetailProject?.image) return undefined;
+
+    const timer = window.setTimeout(() => {
+      loadProjectDetail().catch(() => {});
+      const image = new Image();
+      image.decoding = "async";
+      image.fetchPriority = "low";
+      image.src = activeDetailProject.image;
+    }, 180);
+
+    return () => window.clearTimeout(timer);
+  }, [activeDetailProject?.image, isHomeRoute, preloaderDone]);
 
   useEffect(() => {
     const syncFromLocation = () => {
@@ -346,7 +355,7 @@ export function App() {
     <main className={`portfolio-shell${preloaderDone ? " is-home-ready" : ""}${homeEntryReplay ? " is-home-entering" : ""}${hideHomeForDirectEntry ? " is-non-home-entry" : ""}`}>
       {(showPreloader || isHomeRoute) && (
         <Preloader
-          sources={preloadSources}
+          sources={images}
           criticalCount={images.length}
           visible={isHomeRoute}
           animate={showPreloader}
