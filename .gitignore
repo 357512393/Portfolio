@@ -1,5 +1,8 @@
 .DS_Store
 .pnpm-store/
+**/.vite/
+**/tmp/
+**/*.zip
 
 # Dependencies and local build output
 **/node_modules/
@@ -12,4 +15,8 @@
 
 # Visual QA artifacts are not needed for the deployed site
 portfolio-site/*.png
+portfolio-site/design-qa.md
 reference-evidence/
+
+# Local URL lists and deployment notes
+/*.txt

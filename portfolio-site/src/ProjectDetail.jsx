@@ -1,13 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { projectMobileAssetUrl } from "./projectAssets";
 
-function getProjectMediaSources(project) {
+function getDesktopProjectMediaSources(project) {
   return project.images?.length
     ? [project.image, ...project.images]
     : [project.image];
 }
 
-function ProjectMedia({ project, mobile = false, switching = false, contentRef }) {
-  const images = getProjectMediaSources(project);
+function getProjectMediaSources(project, compact = false) {
+  const sources = getDesktopProjectMediaSources(project);
+  return compact ? sources.map(projectMobileAssetUrl) : sources;
+}
+
+function ProjectMedia({ project, compact = false, mobile = false, switching = false, contentRef }) {
+  const images = getProjectMediaSources(project, compact);
 
   return (
     <div ref={contentRef} className={mobile ? "project-page__mobile-media" : "project-page__media"}>
@@ -50,7 +56,7 @@ function ProjectCopy({ project, copyRef, copyScrollable, className = "" }) {
 function MobileProjectView({ project, copyScrollable, copyRef, className = "" }) {
   return (
     <div className={`project-page__mobile-view ${className}`.trim()}>
-      <ProjectMedia project={project} mobile />
+      <ProjectMedia project={project} compact mobile />
       <ProjectCopy project={project} copyRef={copyRef} copyScrollable={copyScrollable} />
     </div>
   );
@@ -120,19 +126,19 @@ async function preloadBatch(sources, concurrency = 2, priority = "auto") {
   await Promise.all(Array.from({ length: Math.min(concurrency, sources.length) }, worker));
 }
 
-function warmProjectFirstMedia(project, priority = "high") {
-  return preloadImage(getProjectMediaSources(project)[0], priority);
+function warmProjectFirstMedia(project, compact, priority = "high") {
+  return preloadImage(getProjectMediaSources(project, compact)[0], priority);
 }
 
-function warmProjectRemainingMedia(project) {
-  return preloadBatch(getProjectMediaSources(project).slice(1), 2, "low");
+function warmProjectRemainingMedia(project, compact) {
+  return preloadBatch(getProjectMediaSources(project, compact).slice(1), 2, "low");
 }
 
-function isProjectFirstMediaCached(project) {
-  return imagePreloadSettled.has(getProjectMediaSources(project)[0]);
+function isProjectFirstMediaCached(project, compact) {
+  return imagePreloadSettled.has(getProjectMediaSources(project, compact)[0]);
 }
 
-export default function ProjectDetail({ projects, activeIndex, onSelect, onClose }) {
+export default function ProjectDetail({ projects, activeIndex, compact = false, onSelect, onClose }) {
   const project = projects[activeIndex];
   const mediaRef = useRef(null);
   const mediaContentRef = useRef(null);
@@ -142,12 +148,12 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
   const panelRef = useRef(null);
   const navigationRequestRef = useRef(0);
   const previousActiveIndexRef = useRef(activeIndex);
-  const entryAnimationStartedRef = useRef(false);
   const [copyScrollable, setCopyScrollable] = useState(false);
   const [readyProjectSlug, setReadyProjectSlug] = useState(null);
   const [switchingIndex, setSwitchingIndex] = useState(null);
-  const [isProjectEntering, setIsProjectEntering] = useState(false);
-  const mediaReady = readyProjectSlug === project.slug || isProjectFirstMediaCached(project);
+  const [isProjectEntering, setIsProjectEntering] = useState(true);
+  const readyMediaKey = `${project.slug}:${compact ? "compact" : "desktop"}`;
+  const mediaReady = readyProjectSlug === readyMediaKey || isProjectFirstMediaCached(project, compact);
   const isProjectSwitching = isProjectEntering || previousActiveIndexRef.current !== activeIndex || switchingIndex === activeIndex;
   const desktopCopyMotionClass = `${isProjectEntering ? " is-project-entering" : ""}${isProjectSwitching ? " is-project-switching" : ""}`;
   const projectAnimationCleanupDelay = Math.max(
@@ -158,25 +164,25 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
 
   useEffect(() => {
     let cancelled = false;
-    setReadyProjectSlug(isProjectFirstMediaCached(project) ? project.slug : null);
-    warmProjectFirstMedia(project, "high").then(() => {
+    setReadyProjectSlug(isProjectFirstMediaCached(project, compact) ? readyMediaKey : null);
+    warmProjectFirstMedia(project, compact, "high").then(() => {
       if (!cancelled) {
-        setReadyProjectSlug(project.slug);
-        warmProjectRemainingMedia(project);
+        setReadyProjectSlug(readyMediaKey);
+        warmProjectRemainingMedia(project, compact);
       }
     });
 
     return () => {
       cancelled = true;
     };
-  }, [project]);
+  }, [compact, project, readyMediaKey]);
 
   useEffect(() => {
     const previousIndex = (activeIndex - 1 + projects.length) % projects.length;
     const nextIndex = (activeIndex + 1) % projects.length;
     const warmNeighbors = () => {
-      warmProjectFirstMedia(projects[previousIndex], "low");
-      warmProjectFirstMedia(projects[nextIndex], "low");
+      warmProjectFirstMedia(projects[previousIndex], compact, "low");
+      warmProjectFirstMedia(projects[nextIndex], compact, "low");
     };
     const idleId = typeof window.requestIdleCallback === "function"
       ? window.requestIdleCallback(warmNeighbors, { timeout: 1200 })
@@ -189,7 +195,7 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
         window.clearTimeout(idleId);
       }
     };
-  }, [activeIndex, projects]);
+  }, [activeIndex, compact, projects]);
 
   useEffect(() => {
     mediaRef.current?.scrollTo({ top: 0, behavior: "instant" });
@@ -206,17 +212,6 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
 
     return () => window.clearTimeout(timer);
   }, [activeIndex, projectAnimationCleanupDelay]);
-
-  useEffect(() => {
-    if (!mediaReady || entryAnimationStartedRef.current) {
-      return undefined;
-    }
-
-    entryAnimationStartedRef.current = true;
-    previousActiveIndexRef.current = activeIndex;
-    setSwitchingIndex(null);
-    setIsProjectEntering(true);
-  }, [mediaReady]);
 
   useEffect(() => {
     if (!isProjectEntering) {
@@ -265,10 +260,10 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
   const navigate = useCallback((nextIndex) => {
     const requestId = navigationRequestRef.current + 1;
     navigationRequestRef.current = requestId;
-    warmProjectFirstMedia(projects[nextIndex], "high").then(() => {
+    warmProjectFirstMedia(projects[nextIndex], compact, "high").then(() => {
       if (navigationRequestRef.current === requestId) onSelect(nextIndex);
     });
-  }, [onSelect, projects]);
+  }, [compact, onSelect, projects]);
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -288,6 +283,7 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
     <section
       className={`project-page${mediaReady ? " is-media-ready" : " is-media-loading"}`}
       aria-label={`${project.title}项目详情`}
+      aria-busy={!mediaReady}
       onWheel={stopScrollPropagation}
       onTouchMove={stopScrollPropagation}
     >
@@ -300,16 +296,20 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
           <span className="project-page__handle" aria-hidden="true" />
         </header>
 
-        <div ref={mobileStageRef} className="project-page__mobile-stage">
-          <MobileProjectView project={project} copyScrollable={copyScrollable} copyRef={mobileCopyRef} />
-        </div>
+        {compact && (
+          <div ref={mobileStageRef} className="project-page__mobile-stage">
+            <MobileProjectView project={project} copyScrollable={copyScrollable} copyRef={mobileCopyRef} />
+          </div>
+        )}
 
-        <ProjectCopy
-          project={project}
-          copyRef={copyRef}
-          copyScrollable={copyScrollable}
-          className={`project-page__desktop-copy${desktopCopyMotionClass}`}
-        />
+        {!compact && (
+          <ProjectCopy
+            project={project}
+            copyRef={copyRef}
+            copyScrollable={copyScrollable}
+            className={`project-page__desktop-copy${desktopCopyMotionClass}`}
+          />
+        )}
 
         <nav className="project-page__index" aria-label="项目快速切换">
           {projects.map((item, index) => (
@@ -332,9 +332,11 @@ export default function ProjectDetail({ projects, activeIndex, onSelect, onClose
         </footer>
       </aside>
 
-      <div ref={mediaRef} className="project-page__desktop-media">
-        <ProjectMedia project={project} switching={isProjectSwitching} contentRef={mediaContentRef} />
-      </div>
+      {!compact && (
+        <div ref={mediaRef} className="project-page__desktop-media">
+          <ProjectMedia project={project} switching={isProjectSwitching} contentRef={mediaContentRef} />
+        </div>
+      )}
     </section>
   );
 }

@@ -5,24 +5,22 @@ import PhotographyPage from "./PhotographyPage.jsx";
 import SlashHoverLabel from "./SlashHoverLabel";
 import Preloader from "./Preloader";
 import { assetUrl } from "./assetUrl";
+import {
+  projectCoverImage,
+  projectImages,
+  projectMobileAssetUrl,
+  projectThumbnailImages,
+} from "./projectAssets";
 
 const loadProjectDetail = () => import("./ProjectDetail.jsx");
 const ProjectDetail = lazy(loadProjectDetail);
 
-const projectImages = (slug, numbers) => (
-  numbers.map((number) => assetUrl(`/assets/projects/${slug}/${number}.webp`))
-);
-
-const projectThumbnailImages = (slug, numbers) => (
-  numbers.map((number) => assetUrl(`/assets/project-thumbnails/${slug}/${number}.webp`))
-);
-
 const homeCoverImage = (number) => assetUrl(`/assets/home-covers/${number}.webp`);
-const otherDesignFinalImage = assetUrl("/assets/projects/other-design/41.webp");
+const otherDesignFinalImage = projectImages("other-design", [41])[0];
 
 const detailProjects = [
   {
-    image: assetUrl("/assets/2.webp"),
+    image: projectCoverImage(2),
     images: [...projectImages("paid-live", [5, 6, 7, 8, 9, 10]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("paid-live", [1, 2, 3, 4, 5]),
     slug: "paid-live",
@@ -34,7 +32,7 @@ const detailProjects = [
     highlights: ["建立移动端与桌面端一致的直播体验框架", "重构开播、观看与互动链路，降低核心任务成本", "与产品、研发协作沉淀可复用的直播组件与规范"],
   },
   {
-    image: assetUrl("/assets/3.webp"),
+    image: projectCoverImage(3),
     images: [...projectImages("pc-live-assistant", [12, 13, 14, 15, 16]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("pc-live-assistant", [7, 8, 9, 10, 11]),
     slug: "pc-live-assistant",
@@ -46,7 +44,7 @@ const detailProjects = [
     highlights: ["重构直播前、中、后的任务流程与信息架构", "统一中控台状态反馈，提升高频操作可见性", "覆盖异常、弱网与多设备协同场景"],
   },
   {
-    image: assetUrl("/assets/4.webp"),
+    image: projectCoverImage(4),
     images: [...projectImages("ai-design-workflow", [18, 19, 20]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("ai-design-workflow", [12, 13]),
     slug: "ai-design-workflow",
@@ -58,7 +56,7 @@ const detailProjects = [
     highlights: ["基于组件映射生成前端代码，实现设计稿到页面的快速落地", "让AI理解产品设计语言，保证生成结果的一致性", "通过 Figma MCP 学习历史页面、业务流程及高频场景，实现业务页面快速生成"],
   },
   {
-    image: assetUrl("/assets/5.webp"),
+    image: projectCoverImage(5),
     images: [...projectImages("ai-apps", [21, 22, 23, 24, 25, 26, 27]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("ai-apps", [14, 15, 16, 17, 18]),
     slug: "ai-apps",
@@ -70,7 +68,7 @@ const detailProjects = [
     highlights: ["AI 输出结构化答案，分点输出建议，回答清晰易读，适配知识付费场景", "提供两套语音路径，适合快速口述提问和长段口述、解放双手的使用场景，覆盖不同用户操作习惯", "页面完整覆盖：点击快捷提问、文字输入、短语音输入、沉浸式语音通话四种交互方式。"],
   },
   {
-    image: assetUrl("/assets/6.webp"),
+    image: projectCoverImage(6),
     images: [...projectImages("ai-website-design", [29, 30]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("ai-website-design", [21, 22]),
     slug: "ai-website-design",
@@ -82,7 +80,7 @@ const detailProjects = [
     highlights: ["完成从视觉概念到响应式页面的落地", "保证信息结构、视觉语言保持统一，保障企业客户在不同设备下的阅读体验", "通过模块化复用，在保证视觉统一的前提下，降低多页面的设计与迭代成本"],
   },
   {
-    image: assetUrl("/assets/7.webp"),
+    image: projectCoverImage(7),
     images: [...projectImages("study-abroad", [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]), otherDesignFinalImage],
     thumbnails: projectThumbnailImages("study-abroad", [29, 30, 31, 32, 33]),
     slug: "study-abroad",
@@ -94,7 +92,7 @@ const detailProjects = [
     highlights: ["梳理产品问题，完善产品流程，提升产品体验，降低用户流失", "优化首页布局，提升核心功能点击率，延长用户停留时间", "合并提问流程，统一交互样式，提升页面内容填写效率"],
   },
   {
-    image: assetUrl("/assets/8.webp"),
+    image: projectCoverImage(8),
     images: projectImages("other-design", [32, 33, 34, 35, 36, 37, 38, 39, 40, 41]),
     thumbnails: projectThumbnailImages("other-design", [23, 24, 25, 26, 27]),
     slug: "other-design",
@@ -167,6 +165,7 @@ function padIndex(index) {
 export function App() {
   const width = useViewportWidth();
   const isMobile = width <= 809;
+  const compactProjectDetail = width <= 1100;
   const desktopWidth = Math.min(1920, Math.max(1280, width));
   // The foreground mesh is enlarged by the perspective camera (~1.35×).
   // 178px renders at ~240px at 1280. The base then follows the viewport
@@ -199,21 +198,24 @@ export function App() {
   const activeDetailProject = detailProjects.find(
     (project) => project.slug === (active.detailSlug ?? active.slug),
   );
+  const activeDetailLeadImage = activeDetailProject
+    ? (compactProjectDetail ? projectMobileAssetUrl(activeDetailProject.image) : activeDetailProject.image)
+    : null;
   const thumbnailImages = activeDetailProject?.thumbnails ?? activeDetailProject?.images ?? [];
 
   useEffect(() => {
-    if (!isHomeRoute || !preloaderDone || !activeDetailProject?.image) return undefined;
+    if (!isHomeRoute || !preloaderDone || !activeDetailLeadImage) return undefined;
 
     const timer = window.setTimeout(() => {
       loadProjectDetail().catch(() => {});
       const image = new Image();
       image.decoding = "async";
       image.fetchPriority = "low";
-      image.src = activeDetailProject.image;
+      image.src = activeDetailLeadImage;
     }, 180);
 
     return () => window.clearTimeout(timer);
-  }, [activeDetailProject?.image, isHomeRoute, preloaderDone]);
+  }, [activeDetailLeadImage, isHomeRoute, preloaderDone]);
 
   useEffect(() => {
     const syncFromLocation = () => {
@@ -470,6 +472,7 @@ export function App() {
         <Suspense fallback={null}><ProjectDetail
           projects={detailProjects}
           activeIndex={detailIndex}
+          compact={compactProjectDetail}
           onSelect={(index) => openDetailProject(index, true)}
           onClose={closeProject}
         /></Suspense>

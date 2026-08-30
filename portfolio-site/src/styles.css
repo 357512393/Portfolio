@@ -1527,10 +1527,6 @@ button:focus-visible {
   overscroll-behavior: contain;
 }
 
-.project-page.is-media-loading {
-  visibility: hidden;
-}
-
 .project-page__backdrop {
   position: absolute;
   z-index: 1;
