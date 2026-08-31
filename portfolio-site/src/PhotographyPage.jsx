@@ -2,13 +2,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import SlashHoverLabel from "./SlashHoverLabel";
 import { assetUrl } from "./assetUrl";
 
-const PHOTOGRAPHY_ASSET_VERSION = "20260831-1";
+const PHOTOGRAPHY_ASSET_VERSION = "20260831-2";
 const photographyAssetUrl = (path) => (
   assetUrl(`${path}?v=${PHOTOGRAPHY_ASSET_VERSION}`)
 );
 
 const PHOTOGRAPHY_IMAGES = Array.from({ length: 64 }, (_, index) => (
-  photographyAssetUrl(`/assets/photography/${index + 1}.webp`)
+  photographyAssetUrl(`/assets/photography/${index + 1}.jpg`)
 ));
 
 const PHOTOGRAPHY_ARCHIVE = PHOTOGRAPHY_IMAGES;
