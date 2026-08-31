@@ -2,7 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import SlashHoverLabel from "./SlashHoverLabel";
 import { assetUrl } from "./assetUrl";
 
-const PHOTOGRAPHY_ASSET_VERSION = "20260826-2";
+const PHOTOGRAPHY_ASSET_VERSION = "20260831-1";
 const photographyAssetUrl = (path) => (
   assetUrl(`${path}?v=${PHOTOGRAPHY_ASSET_VERSION}`)
 );
