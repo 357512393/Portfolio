@@ -67,6 +67,32 @@ button:focus-visible {
   line-height: 1.4;
 }
 
+.site-filing {
+  position: fixed;
+  z-index: 40;
+  right: var(--edge-x);
+  bottom: var(--edge-y);
+  color: #575757;
+  font-size: 11px;
+  line-height: 18px;
+  text-decoration: none;
+  transition: color 180ms ease;
+}
+
+.site-filing:hover,
+.site-filing:focus-visible {
+  color: #f4f4f2;
+}
+
+.site-filing:focus-visible {
+  outline: 1px solid #f4f4f2;
+  outline-offset: 3px;
+}
+
+.site-filing.is-photography-open {
+  bottom: calc(var(--edge-y) + 28px);
+}
+
 /* Reference preloader motion: the full-screen cover waits for real image
    decoding, then slides away to reveal the page underneath. */
 .preloader {
@@ -1973,6 +1999,17 @@ button:focus-visible {
     right: var(--edge-x);
     gap: 16px;
     font-size: 13px;
+  }
+
+  .site-filing {
+    right: var(--edge-x);
+    bottom: 14px;
+    font-size: 10px;
+    line-height: 18px;
+  }
+
+  .site-filing.is-photography-open {
+    bottom: 42px;
   }
 
   .site-nav a:hover {

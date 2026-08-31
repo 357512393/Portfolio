@@ -482,6 +482,15 @@ export function App() {
       {photographyMounted && (
         <PhotographyPage active={photographyOpen} onClose={closePhotography} />
       )}
+
+      <a
+        className={`site-filing${photographyOpen ? " is-photography-open" : ""}`}
+        href="https://beian.miit.gov.cn/"
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        闽ICP备2026033780号
+      </a>
     </main>
   );
 }
