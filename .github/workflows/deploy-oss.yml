@@ -64,5 +64,48 @@ jobs:
         run: |
           ossutil sync portfolio-site/dist/client/ "oss://$OSS_BUCKET/" \
             --force \
+            --cache-control "public,max-age=2592000" \
             --disable-ignore-error
-          ossutil cp portfolio-site/dist/client/index.html "oss://$OSS_BUCKET/index.html" -f
+
+          # Migrate existing assets that were uploaded before cache metadata was configured.
+          ossutil set-props "oss://$OSS_BUCKET/assets/" \
+            -r \
+            -f \
+            --cache-control "public,max-age=2592000"
+
+          # These fixed-name assets are versioned in their request URLs.
+          for versioned_prefix in \
+            photography \
+            photography-thumbnails \
+            projects \
+            projects-mobile \
+            project-thumbnails
+          do
+            ossutil set-props "oss://$OSS_BUCKET/assets/$versioned_prefix/" \
+              -r \
+              -f \
+              --cache-control "public,max-age=31536000,immutable"
+          done
+
+          # Vite's hashed JS/CSS filenames are immutable between deployments.
+          find portfolio-site/dist/client/assets \
+            -maxdepth 1 \
+            -type f \
+            \( -name '*.js' -o -name '*.css' \) \
+            -print0 | while IFS= read -r -d '' asset_file
+          do
+            object_path="${asset_file#portfolio-site/dist/client/}"
+            ossutil set-props "oss://$OSS_BUCKET/$object_path" \
+              -f \
+              --cache-control "public,max-age=31536000,immutable"
+          done
+
+          ossutil set-props "oss://$OSS_BUCKET/favicon.png" \
+            -f \
+            --cache-control "public,max-age=31536000,immutable"
+
+          # Keep the HTML entry fresh so each release can point to new hashed assets.
+          ossutil cp portfolio-site/dist/client/index.html \
+            "oss://$OSS_BUCKET/index.html" \
+            -f \
+            --cache-control "public,max-age=60,must-revalidate"
